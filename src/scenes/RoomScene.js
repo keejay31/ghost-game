@@ -95,6 +95,11 @@ export class RoomScene extends Phaser.Scene {
     ];
     this.fear = 0; // очки страха
 
+    // Счётчик очков страха в углу
+    this.fearText = this.add
+      .text(8, 6, 'Страх: 0', { fontFamily: 'monospace', fontSize: '12px', color: '#9ff0ff' })
+      .setDepth(30);
+
     // Призрак: летает от потолка до пола
     const flyZone = new Phaser.Geom.Rectangle(0, CEILING_Y, width, FLOOR_Y - CEILING_Y);
     this.ghost = new Ghost(this, 200, 180, flyZone);
@@ -151,6 +156,12 @@ export class RoomScene extends Phaser.Scene {
 
   addFear(points, x, y) {
     this.fear += points;
+    this.fearText.setText(`Страх: ${this.fear}`);
+
+    // Счётчик коротко «подпрыгивает»
+    this.tweens.killTweensOf(this.fearText);
+    this.fearText.y = 6;
+    this.tweens.add({ targets: this.fearText, y: 3, duration: 80, yoyo: true });
 
     // «+1» всплывает над головой и тает
     const label = this.add
