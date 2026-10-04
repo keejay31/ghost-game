@@ -41,6 +41,10 @@ export class RoomScene extends Phaser.Scene {
     super('RoomScene');
   }
 
+  preload() {
+    Ghost.preload(this);
+  }
+
   create() {
     const { width, height } = this.scale;
 

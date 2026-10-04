@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 // Цвета лампы (заглушки)
 const CORD = 0x0a0810;
 const SHADE = 0x6b4f7a;
-const SHADE_POSSESSED = 0xa8c4ff; // абажур, когда внутри призрак
+const SHADE_POSSESSED = 0x66c2fd; // абажур, когда внутри призрак (цвет призрака)
 const BULB_ON = 0xfff2b0;
 const BULB_OFF = 0x6b6455;
 const BULB_BROKEN = 0x2e2a26;
@@ -65,8 +65,8 @@ export class Lamp {
     // Глаза призрака на абажуре — видны, только когда он внутри
     const eyeY = CORD_LEN + 5;
     this.eyes = [
-      scene.add.rectangle(-4, eyeY, 3, 4, 0x0e0b14),
-      scene.add.rectangle(4, eyeY, 3, 4, 0x0e0b14),
+      scene.add.rectangle(-4, eyeY, 3, 4, 0x041347),
+      scene.add.rectangle(4, eyeY, 3, 4, 0x041347),
     ];
     this.eyes.forEach((e) => e.setVisible(false));
 

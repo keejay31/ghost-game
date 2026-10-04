@@ -1,12 +1,16 @@
 import Phaser from 'phaser';
+import ghostFrontUrl from '../assets/ghost-front.png';
 
 // Настройки полёта
 const ACCEL = 1320; // разгон (от него зависит и макс. скорость)
 const DRAG = 7; // торможение: больше — быстрее останавливается
-const WIDTH = 20;
-const HEIGHT = 24;
 
 export class Ghost {
+  // Загрузить картинку призрака (вызывать в preload сцены)
+  static preload(scene) {
+    scene.load.image('ghost-front', ghostFrontUrl);
+  }
+
   // bounds — прямоугольник, из которого призрак не вылетает
   constructor(scene, x, y, bounds) {
     this.scene = scene;
@@ -17,13 +21,9 @@ export class Ghost {
     this.vx = 0;
     this.vy = 0;
     this.time = 0;
-    this.lookOffset = 0;
 
-    // Заглушка: светлое тело и два глаза
-    const body = scene.add.rectangle(0, 0, WIDTH, HEIGHT, 0xdde8ff).setAlpha(0.85);
-    this.eyeL = scene.add.rectangle(-4, -4, 3, 4, 0x0e0b14);
-    this.eyeR = scene.add.rectangle(4, -4, 3, 4, 0x0e0b14);
-    this.view = scene.add.container(x, y, [body, this.eyeL, this.eyeR]).setDepth(20);
+    // Призрак по рисунку автора
+    this.view = scene.add.image(x, y, 'ghost-front').setDepth(20);
 
     this.keys = scene.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT');
   }
@@ -82,20 +82,16 @@ export class Ghost {
 
     // Не вылетать из комнаты
     const b = this.bounds;
-    const minX = b.left + WIDTH / 2;
-    const maxX = b.right - WIDTH / 2;
-    const minY = b.top + HEIGHT / 2;
-    const maxY = b.bottom - HEIGHT / 2;
+    const halfW = this.view.width / 2;
+    const halfH = this.view.height / 2;
+    const minX = b.left + halfW;
+    const maxX = b.right - halfW;
+    const minY = b.top + halfH;
+    const maxY = b.bottom - halfH;
     if (this.x < minX || this.x > maxX) this.vx = 0;
     if (this.y < minY || this.y > maxY) this.vy = 0;
     this.x = Phaser.Math.Clamp(this.x, minX, maxX);
     this.y = Phaser.Math.Clamp(this.y, minY, maxY);
-
-    // Глаза смотрят туда, куда летим
-    if (this.vx > 10) this.lookOffset = 2;
-    else if (this.vx < -10) this.lookOffset = -2;
-    this.eyeL.x = -4 + this.lookOffset;
-    this.eyeR.x = 4 + this.lookOffset;
 
     // Покачивание в воздухе
     this.time += dt;
