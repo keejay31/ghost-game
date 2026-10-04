@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Ghost } from '../objects/Ghost.js';
 
 // Цвета комнаты: тёмные, графика пока заглушки
 const COLORS = {
@@ -52,5 +53,15 @@ export class RoomScene extends Phaser.Scene {
     for (let x = 0; x < width; x += 64) {
       this.add.rectangle(x, FLOOR_Y, 2, height - FLOOR_Y, COLORS.floorLine).setOrigin(0);
     }
+
+    // Призрак: летает от потолка до пола
+    const flyZone = new Phaser.Geom.Rectangle(0, 24, width, FLOOR_Y - 24);
+    this.ghost = new Ghost(this, width / 2, 160, flyZone);
+  }
+
+  update(time, delta) {
+    // Время кадра в секундах (не больше 0.05, чтобы не «телепортироваться» после паузы)
+    const dt = Math.min(delta / 1000, 0.05);
+    this.ghost.update(dt);
   }
 }
