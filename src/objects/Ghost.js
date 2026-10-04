@@ -9,7 +9,9 @@ const HEIGHT = 24;
 export class Ghost {
   // bounds — прямоугольник, из которого призрак не вылетает
   constructor(scene, x, y, bounds) {
+    this.scene = scene;
     this.bounds = bounds;
+    this.active = true; // false — сидит в предмете
     this.x = x;
     this.y = y;
     this.vx = 0;
@@ -21,12 +23,41 @@ export class Ghost {
     const body = scene.add.rectangle(0, 0, WIDTH, HEIGHT, 0xdde8ff).setAlpha(0.85);
     this.eyeL = scene.add.rectangle(-4, -4, 3, 4, 0x0e0b14);
     this.eyeR = scene.add.rectangle(4, -4, 3, 4, 0x0e0b14);
-    this.view = scene.add.container(x, y, [body, this.eyeL, this.eyeR]);
+    this.view = scene.add.container(x, y, [body, this.eyeL, this.eyeR]).setDepth(20);
 
     this.keys = scene.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT');
   }
 
+  // Нырнуть в предмет в точке (x, y)
+  enter(x, y) {
+    this.active = false;
+    this.vx = 0;
+    this.vy = 0;
+    this.scene.tweens.killTweensOf(this.view);
+    this.scene.tweens.add({ targets: this.view, x, y, scale: 0.2, alpha: 0, duration: 150 });
+  }
+
+  // Вылететь из предмета: из (fromX, fromY) в (toX, toY)
+  exit(fromX, fromY, toX, toY) {
+    this.x = toX;
+    this.y = toY;
+    this.scene.tweens.killTweensOf(this.view);
+    this.view.setPosition(fromX, fromY).setScale(0.2).setAlpha(0);
+    this.scene.tweens.add({
+      targets: this.view,
+      x: toX,
+      y: toY,
+      scale: 1,
+      alpha: 1,
+      duration: 150,
+      onComplete: () => {
+        this.active = true;
+      },
+    });
+  }
+
   update(dt) {
+    if (!this.active) return;
     const k = this.keys;
 
     // Куда жмёт игрок: -1, 0 или 1 по каждой оси
