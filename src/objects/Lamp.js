@@ -92,13 +92,14 @@ export class Lamp {
     if (this.isBroken) return;
     this.isBroken = true;
     this.isOn = false;
+    // Сначала «лопнула» (пугает сильнее), потом «свет погас»
+    this.events.emit('pop');
     this.applyLight();
 
     const cam = this.scene.cameras.main;
     cam.flash(100, 255, 245, 210);
     cam.shake(150, 0.005);
     this.spawnShards();
-    this.events.emit('pop');
   }
 
   applyLight() {

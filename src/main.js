@@ -29,3 +29,6 @@ function fitIntegerZoom() {
 
 window.addEventListener('resize', fitIntegerZoom);
 game.events.once('ready', fitIntegerZoom);
+
+// Для отладки: в режиме разработки игра доступна в консоли браузера как window.game
+if (import.meta.env.DEV) window.game = game;

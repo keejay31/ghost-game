@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Ghost } from '../objects/Ghost.js';
 import { Lamp } from '../objects/Lamp.js';
+import { Person } from '../objects/Person.js';
 
 // Цвета комнаты: тёмные, графика пока заглушки
 const COLORS = {
@@ -27,6 +28,13 @@ const DARK_ALPHA = 0.6;
 
 // На каком расстоянии от лампы можно в неё вселиться
 const POSSESS_DISTANCE = 36;
+
+// Очки страха за каждого напуганного человека
+const FEAR_LIGHT_OFF = 1;
+const FEAR_BULB_POP = 3;
+
+// Середина двери — туда убегают люди
+const DOOR_X = 72;
 
 export class RoomScene extends Phaser.Scene {
   constructor() {
@@ -75,7 +83,17 @@ export class RoomScene extends Phaser.Scene {
       .setDepth(10);
     this.lamp.events.on('light', (isOn) => {
       this.tweens.add({ targets: this.darkness, alpha: isOn ? 0 : DARK_ALPHA, duration: 80 });
+      if (!isOn) this.scarePeople(FEAR_LIGHT_OFF);
     });
+    this.lamp.events.on('pop', () => this.scarePeople(FEAR_BULB_POP));
+
+    // Люди
+    const walkArea = { minX: 150, maxX: 600, doorX: DOOR_X };
+    this.people = [
+      new Person(this, { ...walkArea, x: 420, feetY: 314, shirt: 0x4a6a8a, skin: 0xd9a982 }),
+      new Person(this, { ...walkArea, x: 540, feetY: 324, shirt: 0x8a4a5a, skin: 0xc28a6a }),
+    ];
+    this.fear = 0; // очки страха
 
     // Призрак: летает от потолка до пола
     const flyZone = new Phaser.Geom.Rectangle(0, CEILING_Y, width, FLOOR_Y - CEILING_Y);
@@ -120,7 +138,33 @@ export class RoomScene extends Phaser.Scene {
 
     lamp.update(dt);
     this.ghost.update(dt);
+    this.people.forEach((p) => p.update(dt));
     this.updateHint(nearLamp);
+  }
+
+  // Напугать всех, кто сейчас в комнате и ещё не напуган
+  scarePeople(points) {
+    for (const person of this.people) {
+      if (person.scare()) this.addFear(points, person.headX, person.headY);
+    }
+  }
+
+  addFear(points, x, y) {
+    this.fear += points;
+
+    // «+1» всплывает над головой и тает
+    const label = this.add
+      .text(x, y, `+${points}`, { fontFamily: 'monospace', fontSize: '10px', color: '#9ff0ff' })
+      .setOrigin(0.5, 1)
+      .setDepth(30);
+    this.tweens.add({
+      targets: label,
+      y: y - 20,
+      alpha: 0,
+      duration: 900,
+      ease: 'Quad.easeOut',
+      onComplete: () => label.destroy(),
+    });
   }
 
   updateHint(nearLamp) {
