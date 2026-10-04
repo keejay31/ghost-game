@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Ghost } from '../objects/Ghost.js';
 import { Lamp } from '../objects/Lamp.js';
 import { Person } from '../objects/Person.js';
+import { Piano } from '../objects/Piano.js';
 
 // Цвета комнаты: тёмные, графика пока заглушки
 const COLORS = {
@@ -26,12 +27,11 @@ const CEILING_Y = 24;
 // Насколько темно без света (0 — светло, 1 — чёрный экран)
 const DARK_ALPHA = 0.6;
 
-// На каком расстоянии от лампы можно в неё вселиться
-const POSSESS_DISTANCE = 36;
-
 // Очки страха за каждого напуганного человека
 const FEAR_LIGHT_OFF = 1;
 const FEAR_BULB_POP = 3;
+const FEAR_PIANO_PLAY = 1;
+const FEAR_PIANO_SLAM = 3;
 
 // Середина двери — туда убегают люди
 const DOOR_X = 72;
@@ -76,8 +76,10 @@ export class RoomScene extends Phaser.Scene {
       this.add.rectangle(x, FLOOR_Y, 2, height - FLOOR_Y, COLORS.floorLine).setOrigin(0);
     }
 
-    // Лампа под потолком
+    // Лампа под потолком и пианино у стены
     this.lamp = new Lamp(this, 300, CEILING_Y, FLOOR_Y);
+    this.piano = new Piano(this, 520, FLOOR_Y);
+    this.items = [this.lamp, this.piano]; // во что можно вселиться
 
     // Темнота поверх комнаты, когда свет выключен
     this.darkness = this.add
@@ -92,6 +94,11 @@ export class RoomScene extends Phaser.Scene {
     });
     // Лопнувшая лампочка пугает всех
     this.lamp.events.on('pop', () => this.scarePeople(FEAR_BULB_POP));
+    // Игра на пианино пугает тех, кто рядом, а «бабах» — всех
+    this.piano.events.on('play', () =>
+      this.scarePeople(FEAR_PIANO_PLAY, (p) => this.piano.canHear(p.x)),
+    );
+    this.piano.events.on('slam', () => this.scarePeople(FEAR_PIANO_SLAM));
 
     // Люди
     const walkArea = { minX: 150, maxX: 600, doorX: DOOR_X };
@@ -124,33 +131,37 @@ export class RoomScene extends Phaser.Scene {
     // Время кадра в секундах (не больше 0.05, чтобы не «телепортироваться» после паузы)
     const dt = Math.min(delta / 1000, 0.05);
     const JustDown = Phaser.Input.Keyboard.JustDown;
-    const lamp = this.lamp;
 
-    const nearLamp =
-      Phaser.Math.Distance.Between(this.ghost.x, this.ghost.y, lamp.x, lamp.y) < POSSESS_DISTANCE;
+    // Предмет, в который можно вселиться прямо сейчас
+    const near = this.possessed
+      ? null
+      : this.items.find((item) => item.isNear(this.ghost.x, this.ghost.y));
 
     if (JustDown(this.keys.E)) {
       if (this.possessed) {
-        // Выйти из лампы — вылетаем под неё
-        lamp.setPossessed(false);
+        // Выйти из предмета
+        const item = this.possessed;
+        item.setPossessed(false);
         this.possessed = null;
-        this.ghost.exit(lamp.x, lamp.y, lamp.x, lamp.y + 34);
-      } else if (nearLamp) {
-        lamp.setPossessed(true);
-        this.possessed = lamp;
-        this.ghost.enter(lamp.x, lamp.y);
+        const out = item.exitPoint;
+        this.ghost.exit(item.x, item.y, out.x, out.y);
+      } else if (near) {
+        near.setPossessed(true);
+        this.possessed = near;
+        this.ghost.enter(near.x, near.y);
       }
     }
 
-    if (this.possessed === lamp) {
-      if (JustDown(this.keys.SPACE)) lamp.toggle();
-      if (JustDown(this.keys.Q)) lamp.pop();
+    // Пробел — малое действие, Q — большое
+    if (this.possessed) {
+      if (JustDown(this.keys.SPACE)) this.possessed.smallAction();
+      if (JustDown(this.keys.Q)) this.possessed.bigAction();
     }
 
-    lamp.update(dt);
+    this.items.forEach((item) => item.update(dt));
     this.ghost.update(dt);
     this.people.forEach((p) => p.update(dt));
-    this.updateHint(nearLamp);
+    this.updateHint(near);
   }
 
   // Напугать людей в комнате (кроме уже напуганных). who — кого именно
@@ -184,13 +195,10 @@ export class RoomScene extends Phaser.Scene {
     });
   }
 
-  updateHint(nearLamp) {
+  updateHint(near) {
     let text = '';
-    if (this.possessed) {
-      text = this.lamp.isBroken ? 'E — выйти' : 'Пробел — свет    Q — лопнуть    E — выйти';
-    } else if (nearLamp) {
-      text = 'E — вселиться в лампу';
-    }
+    if (this.possessed) text = this.possessed.actionsHint();
+    else if (near) text = `E — вселиться в ${near.label}`;
     if (this.hint.text !== text) this.hint.setText(text);
   }
 }

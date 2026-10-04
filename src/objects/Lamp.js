@@ -14,11 +14,13 @@ const CORD_LEN = 36;
 const SHADE_W = 26;
 const SHADE_H = 12;
 const LIGHT_HALF_WIDTH = 120; // полуширина луча у пола
+const POSSESS_DISTANCE = 36; // с какого расстояния можно вселиться
 
 // Лампа на шнуре под потолком
 export class Lamp {
   constructor(scene, x, ceilingY, floorY) {
     this.scene = scene;
+    this.label = 'лампу'; // для подсказки «вселиться в …»
     this.floorY = floorY;
     this.isOn = true;
     this.isBroken = false;
@@ -73,6 +75,27 @@ export class Lamp {
 
     // Всё вместе качается вокруг точки на потолке
     this.view = scene.add.container(x, ceilingY, [this.glow, cord, this.shade, this.bulb, ...this.eyes]);
+  }
+
+  isNear(x, y) {
+    return Phaser.Math.Distance.Between(x, y, this.x, this.y) < POSSESS_DISTANCE;
+  }
+
+  // Куда вылетает призрак — под лампу
+  get exitPoint() {
+    return { x: this.x, y: this.y + 34 };
+  }
+
+  actionsHint() {
+    return this.isBroken ? 'E — выйти' : 'Пробел — свет    Q — лопнуть    E — выйти';
+  }
+
+  smallAction() {
+    this.toggle();
+  }
+
+  bigAction() {
+    this.pop();
   }
 
   // Стоит ли точка x на полу в луче лампы
