@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 // Настройки полёта
-const ACCEL = 1200; // разгон
+const ACCEL = 1320; // разгон (от него зависит и макс. скорость)
 const DRAG = 7; // торможение: больше — быстрее останавливается
 const WIDTH = 20;
 const HEIGHT = 24;
