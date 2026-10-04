@@ -1,0 +1,6 @@
+# Зависимости и сборка
+node_modules/
+dist/
+
+# Системный мусор macOS
+.DS_Store
