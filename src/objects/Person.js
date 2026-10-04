@@ -9,7 +9,8 @@ export class Person {
   // options: x, feetY, shirt, skin, minX, maxX, doorX
   constructor(scene, options) {
     this.scene = scene;
-    Object.assign(this, options);
+    const { x, ...rest } = options; // x хранится в view, тут — остальное
+    Object.assign(this, rest);
     this.state = 'walk'; // walk, idle, scared, flee, gone
     this.dir = -1;
     this.time = Math.random() * 10;
@@ -27,8 +28,12 @@ export class Person {
       .setVisible(false);
 
     this.view = scene.add
-      .container(this.x, this.feetY, [body, head, hair, eye, this.mouth, this.alarm])
+      .container(x, this.feetY, [body, head, hair, eye, this.mouth, this.alarm])
       .setDepth(5);
+  }
+
+  get x() {
+    return this.view.x;
   }
 
   // Точка над «!» — для «+1»

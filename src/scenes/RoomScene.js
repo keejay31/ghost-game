@@ -87,8 +87,10 @@ export class RoomScene extends Phaser.Scene {
       .setDepth(10);
     this.lamp.events.on('light', (isOn) => {
       this.tweens.add({ targets: this.darkness, alpha: isOn ? 0 : DARK_ALPHA, duration: 80 });
-      if (!isOn) this.scarePeople(FEAR_LIGHT_OFF);
+      // Погасший свет пугает только тех, кто стоял в луче
+      if (!isOn) this.scarePeople(FEAR_LIGHT_OFF, (p) => this.lamp.lightsUp(p.x));
     });
+    // Лопнувшая лампочка пугает всех
     this.lamp.events.on('pop', () => this.scarePeople(FEAR_BULB_POP));
 
     // Люди
@@ -151,10 +153,10 @@ export class RoomScene extends Phaser.Scene {
     this.updateHint(nearLamp);
   }
 
-  // Напугать всех, кто сейчас в комнате и ещё не напуган
-  scarePeople(points) {
+  // Напугать людей в комнате (кроме уже напуганных). who — кого именно
+  scarePeople(points, who = () => true) {
     for (const person of this.people) {
-      if (person.scare()) this.addFear(points, person.headX, person.headY);
+      if (who(person) && person.scare()) this.addFear(points, person.headX, person.headY);
     }
   }
 

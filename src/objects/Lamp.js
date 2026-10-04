@@ -13,6 +13,7 @@ const GLASS = 0xe8f4ff;
 const CORD_LEN = 36;
 const SHADE_W = 26;
 const SHADE_H = 12;
+const LIGHT_HALF_WIDTH = 120; // полуширина луча у пола
 
 // Лампа на шнуре под потолком
 export class Lamp {
@@ -40,8 +41,8 @@ export class Lamp {
       [
         { x: -SHADE_W / 2, y: shadeBottom },
         { x: SHADE_W / 2, y: shadeBottom },
-        { x: 120, y: toFloor },
-        { x: -120, y: toFloor },
+        { x: LIGHT_HALF_WIDTH, y: toFloor },
+        { x: -LIGHT_HALF_WIDTH, y: toFloor },
       ],
       true,
     );
@@ -56,7 +57,7 @@ export class Lamp {
       true,
     );
     this.glow.fillStyle(GLOW, 0.08);
-    this.glow.fillEllipse(0, toFloor + 6, 240, 16);
+    this.glow.fillEllipse(0, toFloor + 6, LIGHT_HALF_WIDTH * 2, 16);
 
     const cord = scene.add.rectangle(0, 0, 2, CORD_LEN, CORD).setOrigin(0.5, 0);
     this.shade = scene.add.rectangle(0, CORD_LEN, SHADE_W, SHADE_H, SHADE).setOrigin(0.5, 0);
@@ -72,6 +73,11 @@ export class Lamp {
 
     // Всё вместе качается вокруг точки на потолке
     this.view = scene.add.container(x, ceilingY, [this.glow, cord, this.shade, this.bulb, ...this.eyes]);
+  }
+
+  // Стоит ли точка x на полу в луче лампы
+  lightsUp(x) {
+    return Math.abs(x - this.x) <= LIGHT_HALF_WIDTH;
   }
 
   setPossessed(value) {
