@@ -22,14 +22,14 @@ export class Person {
     const hair = scene.add.rectangle(-1, -30, 12, 3, 0x1a1210).setOrigin(0.5, 1);
     const eye = scene.add.rectangle(2, -26, 2, 2, 0x0e0b14);
     this.mouth = scene.add.rectangle(3, -23, 3, 3, 0x0e0b14).setVisible(false);
+    // «!» рисуется поверх темноты — его видно и без света
     this.alarm = scene.add
-      .text(0, -36, '!', { fontFamily: 'monospace', fontSize: '12px', color: '#ffe066' })
+      .text(0, 0, '!', { fontFamily: 'monospace', fontSize: '12px', color: '#ffe066' })
       .setOrigin(0.5, 1)
+      .setDepth(15)
       .setVisible(false);
 
-    this.view = scene.add
-      .container(x, this.feetY, [body, head, hair, eye, this.mouth, this.alarm])
-      .setDepth(5);
+    this.view = scene.add.container(x, this.feetY, [body, head, hair, eye, this.mouth]).setDepth(5);
   }
 
   get x() {
@@ -109,11 +109,13 @@ export class Person {
     if (this.state !== 'scared' && this.state !== 'gone') {
       this.view.y = Math.round(this.feetY - bounce);
     }
+    this.alarm.setPosition(this.view.x, this.view.y - 36);
   }
 
   // Ушёл за дверь, вернётся позже
   leave() {
     this.state = 'gone';
+    this.alarm.setVisible(false);
     this.scene.tweens.add({ targets: this.view, alpha: 0, duration: 150 });
     this.scene.time.delayedCall(RETURN_DELAY, () => this.comeBack());
   }

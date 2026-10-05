@@ -11,6 +11,7 @@ const MAX_SPEED = ACCEL / DRAG;
 const LOOK_PX = 2; // на сколько пикселей лицо поворачивается в сторону
 const LEAN_PX = 1.5; // наклон на полной скорости
 const WAVE_FPS = 8; // кадров в секунду у волны по хвосту
+const GLOW = 0x66c2fd; // призрак светится своим цветом
 
 export class Ghost {
   // Загрузить картинку призрака (вызывать в preload сцены)
@@ -37,6 +38,11 @@ export class Ghost {
     this.lookTimer = 0;
     this.blinkIn = Phaser.Math.FloatBetween(2, 5); // через сколько секунд моргнуть
     this.blinkLeft = 0; // сколько ещё глаза закрыты
+
+    // Призрак светится: освещает всё вокруг себя и окружён ореолом
+    this.light = scene.lighting.addLight('light-soft', GLOW);
+    this.aura = scene.lighting.addGlow('light-soft', GLOW);
+    this.glowTime = 0;
 
     this.keys = scene.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT');
   }
@@ -70,7 +76,19 @@ export class Ghost {
   }
 
   update(dt) {
-    if (!this.active) return;
+    if (this.active) this.fly(dt);
+
+    // Свет летит за призраком и медленно «дышит». Внутри предмета — светит из него
+    this.glowTime += dt;
+    const pulse = 1 + 0.06 * Math.sin(this.glowTime * 2.2);
+    this.light.setPosition(this.view.x, this.view.y).setScale(1.5 * pulse).setAlpha(0.85);
+    this.aura
+      .setPosition(this.view.x, this.view.y)
+      .setScale(0.55 * pulse)
+      .setAlpha(0.15 + 0.15 * this.view.alpha);
+  }
+
+  fly(dt) {
     const k = this.keys;
 
     // Куда жмёт игрок: -1, 0 или 1 по каждой оси

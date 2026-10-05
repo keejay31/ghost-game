@@ -1,14 +1,15 @@
 import Phaser from 'phaser';
 import { Synth } from '../audio/Synth.js';
+import { makeLightTexture } from '../fx/Lighting.js';
 
 // Цвета лампы (заглушки)
 const CORD = 0x0a0810;
-const SHADE = 0x6b4f7a;
+const SHADE = 0x8a66a0;
 const SHADE_POSSESSED = 0x66c2fd; // абажур, когда внутри призрак (цвет призрака)
 const BULB_ON = 0xfff2b0;
 const BULB_OFF = 0x6b6455;
 const BULB_BROKEN = 0x2e2a26;
-const GLOW = 0xffd98a;
+const LIGHT = 0xffe0a8; // тёплый свет лампы
 const GLASS = 0xe8f4ff;
 
 const CORD_LEN = 36;
@@ -16,6 +17,28 @@ const SHADE_W = 26;
 const SHADE_H = 12;
 const LIGHT_HALF_WIDTH = 120; // полуширина луча у пола
 const POSSESS_DISTANCE = 36; // с какого расстояния можно вселиться
+
+// Рисунок света лампы: конус от абажура до пола с мягкими краями и пятно на полу.
+// Верх картинки — потолок, середина по ширине — шнур
+function makeConeTexture(scene, toFloor, height) {
+  const w = (LIGHT_HALF_WIDTH + 40) * 2;
+  const top = CORD_LEN + SHADE_H; // низ абажура
+  const smooth = Phaser.Math.SmoothStep;
+  makeLightTexture(scene, 'lamp-cone', w, height, (px, py) => {
+    const x = Math.abs(px - w / 2);
+    if (py < top) return 0;
+    if (py > toFloor) {
+      // Пятно на полу — овал
+      const depth = (py - toFloor) / (height - toFloor); // 0 — у стены, 1 — низ экрана
+      const d = Math.hypot(x / (LIGHT_HALF_WIDTH + 6), (depth - 0.35) / 1.1);
+      return (1 - smooth(d, 0.5, 1.05)) * 0.8;
+    }
+    const t = (py - top) / (toFloor - top); // 0 — у абажура, 1 — у пола
+    const half = SHADE_W / 2 + (LIGHT_HALF_WIDTH - SHADE_W / 2) * t; // полуширина луча на этой высоте
+    const fade = 1 / (1 + 1.2 * t * t); // чем дальше от лампы, тем слабее
+    return (1 - smooth(x / half, 0.55, 1.05)) * fade;
+  });
+}
 
 // Лампа на шнуре под потолком
 export class Lamp {
@@ -28,6 +51,7 @@ export class Lamp {
     this.isBroken = false;
     this.isPossessed = false;
     this.time = 0;
+    this.power = 1; // яркость прямо сейчас: 1 — горит, 0 — погасла
 
     // Сюда подписываются те, кому важен свет (потом — люди)
     this.events = new Phaser.Events.EventEmitter();
@@ -36,32 +60,16 @@ export class Lamp {
     this.x = x;
     this.y = ceilingY + CORD_LEN + SHADE_H / 2;
 
-    // Конус света до пола и пятно на полу
-    const toFloor = floorY - ceilingY;
+    // Свет: конус до пола и ореол вокруг лампочки освещают комнату...
+    const lighting = scene.lighting;
     const shadeBottom = CORD_LEN + SHADE_H;
-    this.glow = scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    this.glow.fillStyle(GLOW, 0.06);
-    this.glow.fillPoints(
-      [
-        { x: -SHADE_W / 2, y: shadeBottom },
-        { x: SHADE_W / 2, y: shadeBottom },
-        { x: LIGHT_HALF_WIDTH, y: toFloor },
-        { x: -LIGHT_HALF_WIDTH, y: toFloor },
-      ],
-      true,
-    );
-    this.glow.fillStyle(GLOW, 0.05);
-    this.glow.fillPoints(
-      [
-        { x: -6, y: shadeBottom },
-        { x: 6, y: shadeBottom },
-        { x: 60, y: toFloor },
-        { x: -60, y: toFloor },
-      ],
-      true,
-    );
-    this.glow.fillStyle(GLOW, 0.08);
-    this.glow.fillEllipse(0, toFloor + 6, LIGHT_HALF_WIDTH * 2, 16);
+    makeConeTexture(scene, floorY - ceilingY, scene.scale.height - ceilingY);
+    this.cone = lighting.addLight('lamp-cone', LIGHT).setOrigin(0.5, 0);
+    this.halo = lighting.addLight('light-soft', LIGHT).setScale(1.2);
+    this.fill = lighting.addLight('light-soft', LIGHT).setScale(5); // слабый свет на всю комнату
+    // ...а поверх темноты — луч в воздухе и сияние самой лампочки
+    this.beam = lighting.addGlow('lamp-cone', LIGHT).setOrigin(0.5, 0);
+    this.shine = lighting.addGlow('light-soft', LIGHT).setScale(0.45);
 
     const cord = scene.add.rectangle(0, 0, 2, CORD_LEN, CORD).setOrigin(0.5, 0);
     this.shade = scene.add.rectangle(0, CORD_LEN, SHADE_W, SHADE_H, SHADE).setOrigin(0.5, 0);
@@ -76,7 +84,7 @@ export class Lamp {
     this.eyes.forEach((e) => e.setVisible(false));
 
     // Всё вместе качается вокруг точки на потолке
-    this.view = scene.add.container(x, ceilingY, [this.glow, cord, this.shade, this.bulb, ...this.eyes]);
+    this.view = scene.add.container(x, ceilingY, [cord, this.shade, this.bulb, ...this.eyes]);
   }
 
   isNear(x, y) {
@@ -136,7 +144,6 @@ export class Lamp {
   }
 
   applyLight() {
-    this.glow.setVisible(this.isOn);
     if (this.isBroken) this.bulb.fillColor = BULB_BROKEN;
     else this.bulb.fillColor = this.isOn ? BULB_ON : BULB_OFF;
     this.events.emit('light', this.isOn);
@@ -171,5 +178,23 @@ export class Lamp {
     // С призраком внутри лампа покачивается, без него — успокаивается
     const target = this.isPossessed ? Math.sin(this.time * 2.5) * 0.06 : 0;
     this.view.rotation += (target - this.view.rotation) * Math.min(1, dt * 8);
+
+    // Свет загорается и гаснет за долю секунды
+    const goal = this.isOn ? 1 : 0;
+    this.power += (goal - this.power) * Math.min(1, dt * 30);
+    if (Math.abs(goal - this.power) < 0.01) this.power = goal;
+    // Лампочка чуть мерцает
+    const p = this.power * (0.97 + 0.03 * Math.sin(this.time * 37) * Math.sin(this.time * 23));
+
+    // Свет качается вместе с лампой
+    const rot = this.view.rotation;
+    const bulbDown = this.bulb.y; // лампочка — на столько ниже потолка
+    const bulbX = this.view.x - Math.sin(rot) * bulbDown;
+    const bulbY = this.view.y + Math.cos(rot) * bulbDown;
+    this.cone.setPosition(this.view.x, this.view.y).setRotation(rot).setAlpha(p);
+    this.beam.setPosition(this.view.x, this.view.y).setRotation(rot).setAlpha(p * 0.1);
+    this.halo.setPosition(bulbX, bulbY).setAlpha(p * 0.6);
+    this.fill.setPosition(bulbX, bulbY).setAlpha(p * 0.3);
+    this.shine.setPosition(bulbX, bulbY).setAlpha(p * 0.8);
   }
 }

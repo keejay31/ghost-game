@@ -2,9 +2,9 @@ import Phaser from 'phaser';
 import { Synth } from '../audio/Synth.js';
 
 // Цвета пианино (заглушки)
-const WOOD = 0x2e1c14;
-const WOOD_LIGHT = 0x4a2e1e;
-const WOOD_DARK = 0x21140e;
+const WOOD = 0x5a3826;
+const WOOD_LIGHT = 0x7a4e32;
+const WOOD_DARK = 0x40261a;
 const PANEL_POSSESSED = 0x66c2fd; // панель, когда внутри призрак (цвет призрака)
 const KEY_WHITE = 0xd8d0c0;
 const KEY_GAP = 0x9a9080;

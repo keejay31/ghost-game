@@ -1,31 +1,30 @@
 import Phaser from 'phaser';
 import { Ghost } from '../objects/Ghost.js';
 import { Lamp } from '../objects/Lamp.js';
+import { MoonWindow } from '../objects/MoonWindow.js';
 import { Person } from '../objects/Person.js';
 import { Piano } from '../objects/Piano.js';
+import { Lighting, mixColor } from '../fx/Lighting.js';
 
-// Цвета комнаты: тёмные, графика пока заглушки
+// Цвета комнаты при полном свете (темноту добавляет освещение), графика пока заглушки
 const COLORS = {
-  ceiling: 0x0e0b14,
-  wall: 0x1c1726,
-  wallStripe: 0x221c2e,
-  baseboard: 0x3a2e45,
-  floor: 0x2a2030,
-  floorLine: 0x352838,
-  window: 0x0b1a2e,
-  windowFrame: 0x3a2e45,
-  moon: 0xcfe3ff,
-  door: 0x2e2218,
-  doorKnob: 0xc9a227,
-  darkness: 0x05030a,
+  ceiling: 0x2b2438,
+  wall: 0x54466b,
+  wallStripe: 0x5f5078,
+  baseboard: 0x7a6490,
+  floor: 0x6b4c40,
+  floorLine: 0x553a32,
+  door: 0x6a4a34,
+  doorKnob: 0xe6bc3c,
 };
 
 // Высота пола: от этой линии вниз — пол
 export const FLOOR_Y = 300;
 const CEILING_Y = 24;
 
-// Насколько темно без света (0 — светло, 1 — чёрный экран)
-const DARK_ALPHA = 0.6;
+// Цвет темноты: при свете лампы — по углам, без лампы — во всей комнате
+const AMBIENT_LIT = 0x544c6c;
+const AMBIENT_DARK = 0x1c2446;
 
 // Очки страха за каждого напуганного человека
 const FEAR_LIGHT_OFF = 1;
@@ -48,6 +47,9 @@ export class RoomScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
+    // Свет и темнота (нужны предметам, поэтому создаются первыми)
+    this.lighting = new Lighting(this);
+
     // Потолок и стена
     this.add.rectangle(0, 0, width, 24, COLORS.ceiling).setOrigin(0);
     this.add.rectangle(0, 24, width, FLOOR_Y - 24, COLORS.wall).setOrigin(0);
@@ -58,12 +60,7 @@ export class RoomScene extends Phaser.Scene {
     }
 
     // Окно с луной
-    this.add.rectangle(440, 70, 104, 104, COLORS.windowFrame).setOrigin(0);
-    this.add.rectangle(444, 74, 96, 96, COLORS.window).setOrigin(0);
-    // Луна видна и в темноте
-    this.add.rectangle(510, 92, 14, 14, COLORS.moon).setOrigin(0).setDepth(11);
-    this.add.rectangle(490, 74, 4, 96, COLORS.windowFrame).setOrigin(0);
-    this.add.rectangle(444, 120, 96, 4, COLORS.windowFrame).setOrigin(0);
+    new MoonWindow(this, 444, 74, FLOOR_Y);
 
     // Дверь
     this.add.rectangle(40, 172, 64, FLOOR_Y - 172, COLORS.door).setOrigin(0);
@@ -81,14 +78,7 @@ export class RoomScene extends Phaser.Scene {
     this.piano = new Piano(this, 520, FLOOR_Y);
     this.items = [this.lamp, this.piano]; // во что можно вселиться
 
-    // Темнота поверх комнаты, когда свет выключен
-    this.darkness = this.add
-      .rectangle(0, 0, width, height, COLORS.darkness)
-      .setOrigin(0)
-      .setAlpha(0)
-      .setDepth(10);
     this.lamp.events.on('light', (isOn) => {
-      this.tweens.add({ targets: this.darkness, alpha: isOn ? 0 : DARK_ALPHA, duration: 80 });
       // Погасший свет пугает только тех, кто стоял в луче
       if (!isOn) this.scarePeople(FEAR_LIGHT_OFF, (p) => this.lamp.lightsUp(p.x));
     });
@@ -162,6 +152,10 @@ export class RoomScene extends Phaser.Scene {
     this.ghost.update(dt);
     this.people.forEach((p) => p.update(dt));
     this.updateHint(near);
+
+    // Чем слабее горит лампа, тем темнее в комнате
+    this.lighting.setAmbient(mixColor(AMBIENT_DARK, AMBIENT_LIT, this.lamp.power));
+    this.lighting.update();
   }
 
   // Напугать людей в комнате (кроме уже напуганных). who — кого именно
