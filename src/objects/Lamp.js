@@ -1,20 +1,24 @@
 import Phaser from 'phaser';
 import { Synth } from '../audio/Synth.js';
-import { makeLightTexture } from '../fx/Lighting.js';
+import { makeLightTexture, mixColor } from '../fx/Lighting.js';
+import { makeArt } from '../fx/pixelArt.js';
 
-// Цвета лампы (заглушки)
+// Цвета лампы
 const CORD = 0x0a0810;
+const MOUNT = 0x433456; // крепление на потолке
 const SHADE = 0x8a66a0;
+const SHADE_LIT = 0xf0b4a4; // абажур просвечивает, когда лампа горит
 const SHADE_POSSESSED = 0x66c2fd; // абажур, когда внутри призрак (цвет призрака)
 const BULB_ON = 0xfff2b0;
-const BULB_OFF = 0x6b6455;
-const BULB_BROKEN = 0x2e2a26;
+const BULB_OFF = 0x9a917c;
+const BULB_BROKEN = 0x6b6455;
 const LIGHT = 0xffe0a8; // тёплый свет лампы
 const GLASS = 0xe8f4ff;
 
 const CORD_LEN = 36;
 const SHADE_W = 26;
 const SHADE_H = 12;
+const SHADE_TOP_W = 10; // абажур сужается кверху
 const LIGHT_HALF_WIDTH = 120; // полуширина луча у пола
 const POSSESS_DISTANCE = 36; // с какого расстояния можно вселиться
 
@@ -37,6 +41,37 @@ function makeConeTexture(scene, toFloor, height) {
     const half = SHADE_W / 2 + (LIGHT_HALF_WIDTH - SHADE_W / 2) * t; // полуширина луча на этой высоте
     const fade = 1 / (1 + 1.2 * t * t); // чем дальше от лампы, тем слабее
     return (1 - smooth(x / half, 0.55, 1.05)) * fade;
+  });
+}
+
+// Нарисовать абажур и лампочку. Они серые: цвет им даёт игра (горит, не горит, внутри призрак)
+function paintLamp(scene) {
+  const gray = (v) => {
+    const g = Phaser.Math.Clamp(Math.round(v / 32) * 32, 0, 255); // несколько ступеней яркости
+    return (g << 16) | (g << 8) | g;
+  };
+
+  makeArt(scene, 'lamp-shade', SHADE_W, SHADE_H + 2, (b) => {
+    for (let row = 0; row < SHADE_H; row++) {
+      const w = SHADE_TOP_W + Math.round(((SHADE_W - SHADE_TOP_W) * row) / (SHADE_H - 1) / 2) * 2;
+      const x0 = (SHADE_W - w) / 2;
+      for (let i = 0; i < w; i++) {
+        const side = Math.abs((i + 0.5) / w - 0.4); // блик чуть левее середины
+        const fold = (i + row) % 5 === 0 ? 30 : 0; // складки ткани
+        b.dot(x0 + i, row, gray(255 - side * 190 - fold));
+      }
+    }
+    // Ободки сверху и снизу, бахрома
+    b.rect((SHADE_W - SHADE_TOP_W) / 2, 0, SHADE_TOP_W, 1, gray(150));
+    b.rect(0, SHADE_H - 1, SHADE_W, 1, gray(160));
+    for (let x = 0; x < SHADE_W; x += 2) b.rect(x, SHADE_H, 1, 2, gray(200));
+  });
+
+  makeArt(scene, 'lamp-bulb', 6, 6, (b) => {
+    b.stamp(0, 0, ['.wwww.', 'wWWwww', 'wWwwww', 'wwwwww', '.wwww.', '..ww..'], { w: 0xdddddd, W: 0xffffff });
+  });
+  makeArt(scene, 'lamp-bulb-broken', 6, 6, (b) => {
+    b.stamp(0, 0, ['.wwww.', 'w.ww.w', '..w...'], { w: 0xffffff });
   });
 }
 
@@ -71,9 +106,14 @@ export class Lamp {
     this.beam = lighting.addGlow('lamp-cone', LIGHT).setOrigin(0.5, 0);
     this.shine = lighting.addGlow('light-soft', LIGHT).setScale(0.45);
 
+    // Крепление на потолке (не качается)
+    scene.add.rectangle(x, ceilingY, 10, 2, MOUNT).setOrigin(0.5, 0);
+    scene.add.rectangle(x, ceilingY + 2, 6, 2, MOUNT).setOrigin(0.5, 0);
+
+    paintLamp(scene);
     const cord = scene.add.rectangle(0, 0, 2, CORD_LEN, CORD).setOrigin(0.5, 0);
-    this.shade = scene.add.rectangle(0, CORD_LEN, SHADE_W, SHADE_H, SHADE).setOrigin(0.5, 0);
-    this.bulb = scene.add.rectangle(0, shadeBottom + 2, 6, 4, BULB_ON);
+    this.bulb = scene.add.image(0, shadeBottom + 2, 'lamp-bulb').setTint(BULB_ON);
+    this.shade = scene.add.image(0, CORD_LEN, 'lamp-shade').setOrigin(0.5, 0);
 
     // Глаза призрака на абажуре — видны, только когда он внутри
     const eyeY = CORD_LEN + 5;
@@ -84,7 +124,7 @@ export class Lamp {
     this.eyes.forEach((e) => e.setVisible(false));
 
     // Всё вместе качается вокруг точки на потолке
-    this.view = scene.add.container(x, ceilingY, [cord, this.shade, this.bulb, ...this.eyes]);
+    this.view = scene.add.container(x, ceilingY, [cord, this.bulb, this.shade, ...this.eyes]);
   }
 
   isNear(x, y) {
@@ -115,7 +155,6 @@ export class Lamp {
 
   setPossessed(value) {
     this.isPossessed = value;
-    this.shade.fillColor = value ? SHADE_POSSESSED : SHADE;
     this.eyes.forEach((e) => e.setVisible(value));
   }
 
@@ -144,8 +183,8 @@ export class Lamp {
   }
 
   applyLight() {
-    if (this.isBroken) this.bulb.fillColor = BULB_BROKEN;
-    else this.bulb.fillColor = this.isOn ? BULB_ON : BULB_OFF;
+    if (this.isBroken) this.bulb.setTexture('lamp-bulb-broken').setTint(BULB_BROKEN);
+    else this.bulb.setTint(this.isOn ? BULB_ON : BULB_OFF);
     this.events.emit('light', this.isOn);
   }
 
@@ -186,6 +225,9 @@ export class Lamp {
     // Лампочка чуть мерцает
     const p = this.power * (0.97 + 0.03 * Math.sin(this.time * 37) * Math.sin(this.time * 23));
 
+    // Абажур: с призраком внутри — цвета призрака, иначе просвечивает от лампочки
+    this.shade.setTint(this.isPossessed ? SHADE_POSSESSED : mixColor(SHADE, SHADE_LIT, p));
+
     // Свет качается вместе с лампой
     const rot = this.view.rotation;
     const bulbDown = this.bulb.y; // лампочка — на столько ниже потолка
@@ -194,7 +236,7 @@ export class Lamp {
     this.cone.setPosition(this.view.x, this.view.y).setRotation(rot).setAlpha(p);
     this.beam.setPosition(this.view.x, this.view.y).setRotation(rot).setAlpha(p * 0.1);
     this.halo.setPosition(bulbX, bulbY).setAlpha(p * 0.6);
-    this.fill.setPosition(bulbX, bulbY).setAlpha(p * 0.3);
+    this.fill.setPosition(bulbX, bulbY).setAlpha(p * 0.4);
     this.shine.setPosition(bulbX, bulbY).setAlpha(p * 0.8);
   }
 }

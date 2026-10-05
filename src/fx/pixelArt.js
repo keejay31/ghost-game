@@ -27,6 +27,19 @@ export class Brush {
     }
   }
 
+  // Обвести всё нарисованное контуром в один пиксель
+  outline(color) {
+    const { width, height } = this.ctx.canvas;
+    const { data } = this.ctx.getImageData(0, 0, width, height);
+    const solid = (x, y) => x >= 0 && y >= 0 && x < width && y < height && data[(y * width + x) * 4 + 3] > 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (solid(x, y)) continue;
+        if (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)) this.dot(x, y, color);
+      }
+    }
+  }
+
   // Рисунок из букв: строка — ряд пикселей, буква — цвет из palette, точка — пусто
   stamp(x, y, rows, palette) {
     rows.forEach((row, j) => {

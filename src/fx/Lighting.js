@@ -54,7 +54,7 @@ export class Lighting {
     // Затемнение по углам экрана
     makeLightTexture(scene, 'vignette', width, height, (x, y) => {
       const d = Math.hypot((x - width / 2) / width, (y - height / 2) / height) * 2;
-      return Phaser.Math.SmoothStep(d, 0.6, 1.4) * 0.6;
+      return Phaser.Math.SmoothStep(d, 0.6, 1.4) * 0.45;
     });
     scene.add.image(0, 0, 'vignette').setOrigin(0).setTint(0x000000).setDepth(25);
   }

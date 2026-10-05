@@ -1,16 +1,21 @@
 import Phaser from 'phaser';
 import { Synth } from '../audio/Synth.js';
+import { makeArt } from '../fx/pixelArt.js';
 
-// Цвета пианино (заглушки)
+// Цвета пианино
 const WOOD = 0x5a3826;
 const WOOD_LIGHT = 0x7a4e32;
+const WOOD_SHINE = 0x9c6c46; // блик на кромках
 const WOOD_DARK = 0x40261a;
+const WOOD_DEEP = 0x24140f; // самая глубокая тень
 const PANEL_POSSESSED = 0x66c2fd; // панель, когда внутри призрак (цвет призрака)
 const KEY_WHITE = 0xd8d0c0;
+const KEY_SHADE = 0xb4ab9a;
 const KEY_GAP = 0x9a9080;
 const KEY_BLACK = 0x111014;
 const KEY_PRESSED = 0xfff2b0;
-const PEDAL = 0xc9a227;
+const PEDAL = 0xd9ae38;
+const PEDAL_LIGHT = 0xfff2a8;
 const DUST = 0x8a7f74;
 
 const W = 92; // ширина
@@ -36,6 +41,75 @@ const MELODY = [
   [220, 7.5],
 ];
 
+// Нарисовать пианино. Верхняя панель — отдельной серой картинкой: её красит цвет
+// дерева, а когда внутри призрак — цвет призрака
+function paintPiano(scene) {
+  const rnd = new Phaser.Math.RandomDataGenerator(['piano']);
+
+  makeArt(scene, 'piano', W + 4, H, (b) => {
+    // Координаты как у самого пианино: x — от левого края, y — от пола вверх (с минусом)
+    const r = (x, y, w, h, color, alpha) => b.rect(x + 2, y + H, w, h, color, alpha);
+
+    // Крышка сверху
+    r(-2, -H, W + 4, 4, WOOD_LIGHT);
+    r(-2, -H, W + 4, 1, WOOD_SHINE);
+    r(-2, -H + 3, W + 4, 1, WOOD_DARK);
+
+    // Полка с клавишами
+    r(0, -38, W, 12, WOOD);
+    r(0, -27, W, 1, WOOD_SHINE);
+    r(0, -38, 2, 12, WOOD_LIGHT);
+    r(W - 2, -38, 2, 12, WOOD_LIGHT);
+
+    // Клавиши: белые, щели между ними, чёрные (по 2 и по 3, как на настоящем)
+    r(2, KEYS_Y, W - 4, 7, KEY_WHITE);
+    r(2, KEYS_Y + 6, W - 4, 1, KEY_SHADE);
+    const hasBlack = [1, 1, 0, 1, 1, 1, 0];
+    for (let i = 1; i < WHITE_KEYS; i++) {
+      const kx = 2 + i * KEY_W;
+      r(kx - 1, KEYS_Y, 1, 7, KEY_GAP);
+      if (hasBlack[(i - 1) % 7]) r(kx - 1, KEYS_Y, 2, 4, KEY_BLACK);
+    }
+
+    // Низ: корпус и углублённая панель
+    r(0, -26, W, 26, WOOD);
+    r(8, -22, W - 16, 17, WOOD_LIGHT);
+    r(8, -22, W - 17, 16, WOOD_DEEP);
+    r(9, -21, W - 18, 15, WOOD_DARK);
+    for (let i = 0; i < 12; i++) r(rnd.between(10, W - 26), rnd.between(-20, -8), rnd.between(6, 14), 1, 0x000000, 0.12);
+    r(0, -26, W, 2, WOOD_DEEP); // тень под полкой
+
+    // Ножки по бокам
+    for (const x of [0, W - 6]) {
+      r(x, -24, 6, 24, WOOD_LIGHT);
+      r(x, -24, 1, 24, WOOD_SHINE);
+      r(x + 5, -24, 1, 24, WOOD_DARK);
+      r(x - 1, -3, 8, 3, WOOD_LIGHT);
+    }
+
+    // Педали
+    r(W / 2 - 12, -6, 24, 6, WOOD_DEEP);
+    for (const x of [-9, -2, 5]) {
+      r(W / 2 + x, -4, 4, 2, PEDAL);
+      r(W / 2 + x, -4, 2, 1, PEDAL_LIGHT);
+    }
+  });
+
+  makeArt(scene, 'piano-panel', W, 30, (b) => {
+    b.rect(0, 0, W, 30, 0xbbbbbb);
+    b.rect(0, 0, 1, 30, 0xeeeeee);
+    b.rect(W - 1, 0, 1, 30, 0x888888);
+    // Углублённая филёнка: тень сверху-слева, блик снизу-справа
+    b.rect(6, 4, W - 12, 20, 0xffffff);
+    b.rect(6, 4, W - 13, 19, 0x707070);
+    b.rect(7, 5, W - 14, 18, 0xa4a4a4);
+    for (let i = 0; i < 10; i++) b.rect(rnd.between(9, W - 24), rnd.between(6, 21), rnd.between(6, 14), 1, 0x000000, 0.1);
+    // Полочка для нот
+    b.rect(16, 25, W - 32, 2, 0xf4f4f4);
+    b.rect(16, 27, W - 32, 1, 0x666666);
+  });
+}
+
 // Пианино у стены. x — левый край, floorY — пол
 export class Piano {
   constructor(scene, x, floorY) {
@@ -56,42 +130,28 @@ export class Piano {
     this.x = x + W / 2;
     this.y = floorY - 56;
 
-    const parts = [];
-    const add = (rx, ry, w, h, color) => {
-      const r = scene.add.rectangle(rx, ry, w, h, color).setOrigin(0);
-      parts.push(r);
-      return r;
-    };
+    // Тень на полу под пианино
+    scene.add
+      .image(this.x, floorY + 2, 'light-soft')
+      .setTint(0x000000)
+      .setDisplaySize(W + 36, 16)
+      .setAlpha(0.6);
 
-    add(-2, -H, W + 4, 4, WOOD_LIGHT); // крышка сверху
-    this.panel = add(0, -H + 4, W, 30, WOOD); // верхняя панель
-    add(0, -38, W, 12, WOOD); // корпус вокруг клавиш
+    paintPiano(scene);
+    const body = scene.add.image(-2, -H, 'piano').setOrigin(0);
+    this.panel = scene.add.image(0, -H + 4, 'piano-panel').setOrigin(0).setTint(WOOD_LIGHT); // верхняя панель
 
-    // Клавиши: белые, щели между ними, чёрные (по 2 и по 3, как на настоящем)
-    add(2, KEYS_Y, W - 4, 7, KEY_WHITE);
-    const hasBlack = [1, 1, 0, 1, 1, 1, 0];
-    for (let i = 1; i < WHITE_KEYS; i++) {
-      const kx = 2 + i * KEY_W;
-      add(kx - 1, KEYS_Y, 1, 7, KEY_GAP);
-      if (hasBlack[(i - 1) % 7]) add(kx - 1, KEYS_Y, 2, 4, KEY_BLACK);
-    }
+    const add = (rx, ry, w, h, color) => scene.add.rectangle(rx, ry, w, h, color).setOrigin(0);
     this.keyGlow = add(0, KEYS_Y, KEY_W - 1, 7, KEY_PRESSED).setVisible(false);
 
     // Откинутая крышка над клавишами — она и захлопывается
     this.lid = add(2, -38, W - 4, 5, WOOD_LIGHT);
 
-    // Низ и педали
-    add(0, -26, W, 26, WOOD);
-    add(8, -23, W - 16, 17, WOOD_DARK);
-    add(W / 2 - 9, -4, 4, 2, PEDAL);
-    add(W / 2 - 2, -4, 4, 2, PEDAL);
-    add(W / 2 + 5, -4, 4, 2, PEDAL);
-
     // Глаза призрака на верхней панели
     this.eyes = [add(W / 2 - 9, -60, 4, 6, 0x041347), add(W / 2 + 5, -60, 4, 6, 0x041347)];
     this.eyes.forEach((e) => e.setVisible(false));
 
-    this.view = scene.add.container(x, floorY, parts);
+    this.view = scene.add.container(x, floorY, [body, this.panel, this.keyGlow, this.lid, ...this.eyes]);
   }
 
   // Призрак рядом — над пианино или вплотную к нему
@@ -111,7 +171,7 @@ export class Piano {
 
   setPossessed(value) {
     this.isPossessed = value;
-    this.panel.fillColor = value ? PANEL_POSSESSED : WOOD;
+    this.panel.setTint(value ? PANEL_POSSESSED : WOOD_LIGHT);
     this.eyes.forEach((e) => e.setVisible(value));
   }
 

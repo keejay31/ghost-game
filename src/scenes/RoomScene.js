@@ -61,10 +61,12 @@ export class RoomScene extends Phaser.Scene {
     this.piano.events.on('slam', () => this.scarePeople(FEAR_PIANO_SLAM));
 
     // Люди
-    const walkArea = { minX: 150, maxX: 600, doorX: DOOR_X };
+    const walkArea = { minX: 150, maxX: 600, doorX: DOOR_X, lamp: this.lamp };
+    const blue = { shirt: 0x5a82aa, skin: 0xd9a982, hair: 0x3a2418, pants: 0x3a3650 };
+    const red = { shirt: 0xaa5a6e, skin: 0xc28a6a, hair: 0x1a1210, pants: 0x4a3a34 };
     this.people = [
-      new Person(this, { ...walkArea, x: 420, feetY: 314, shirt: 0x4a6a8a, skin: 0xd9a982 }),
-      new Person(this, { ...walkArea, x: 540, feetY: 324, shirt: 0x8a4a5a, skin: 0xc28a6a }),
+      new Person(this, { ...walkArea, ...blue, x: 420, feetY: 314 }),
+      new Person(this, { ...walkArea, ...red, x: 540, feetY: 324 }),
     ];
     this.fear = 0; // очки страха
 

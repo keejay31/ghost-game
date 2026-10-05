@@ -1,12 +1,15 @@
 import Phaser from 'phaser';
+import { makePersonTexture } from './personArt.js';
 
 const WALK_SPEED = 30;
 const RUN_SPEED = 150;
 const RETURN_DELAY = 5000; // через сколько мс человек вернётся после испуга
+const WALK_FPS = 10; // кадров анимации в секунду
+const RUN_FPS = 16;
 
 // Человек: ходит по комнате, пугается, убегает за дверь и возвращается
 export class Person {
-  // options: x, feetY, shirt, skin, minX, maxX, doorX
+  // options: x, feetY, shirt, skin, hair, pants, minX, maxX, doorX, lamp
   constructor(scene, options) {
     this.scene = scene;
     const { x, ...rest } = options; // x хранится в view, тут — остальное
@@ -16,12 +19,13 @@ export class Person {
     this.time = Math.random() * 10;
     this.pickTarget();
 
-    // Заглушка: туловище, голова, волосы, глаз, рот
-    const body = scene.add.rectangle(0, 0, 14, 22, this.shirt).setOrigin(0.5, 1);
-    const head = scene.add.rectangle(0, -22, 10, 10, this.skin).setOrigin(0.5, 1);
-    const hair = scene.add.rectangle(-1, -30, 12, 3, 0x1a1210).setOrigin(0.5, 1);
-    const eye = scene.add.rectangle(2, -26, 2, 2, 0x0e0b14);
-    this.mouth = scene.add.rectangle(3, -23, 3, 3, 0x0e0b14).setVisible(false);
+    // Тень на полу
+    this.shadow = scene.add.image(x, this.feetY, 'light-soft').setTint(0x000000).setDepth(4);
+
+    // Картинка со всеми позами (у каждой расцветки — своя)
+    const key = `person-${this.shirt}-${this.skin}`;
+    makePersonTexture(scene, key, { shirt: this.shirt, skin: this.skin, hair: this.hair, pants: this.pants });
+    this.sprite = scene.add.image(0, 1, key, 'idle').setOrigin(0.5, 1);
     // «!» рисуется поверх темноты — его видно и без света
     this.alarm = scene.add
       .text(0, 0, '!', { fontFamily: 'monospace', fontSize: '12px', color: '#ffe066' })
@@ -29,7 +33,8 @@ export class Person {
       .setDepth(15)
       .setVisible(false);
 
-    this.view = scene.add.container(x, this.feetY, [body, head, hair, eye, this.mouth]).setDepth(5);
+    // Кто ниже на экране, тот ближе к нам и рисуется поверх
+    this.view = scene.add.container(x, this.feetY, [this.sprite]).setDepth(5 + this.feetY / 1000);
   }
 
   get x() {
@@ -41,7 +46,7 @@ export class Person {
     return this.view.x;
   }
   get headY() {
-    return this.feetY - 52;
+    return this.feetY - 60;
   }
 
   canBeScared() {
@@ -53,7 +58,6 @@ export class Person {
     if (!this.canBeScared()) return false;
     this.state = 'scared';
     this.alarm.setVisible(true);
-    this.mouth.setVisible(true);
     this.scene.tweens.add({
       targets: this.view,
       y: this.feetY - 12,
@@ -85,10 +89,10 @@ export class Person {
 
   update(dt) {
     this.time += dt;
-    let bounce = 0;
+    let frame = 'idle';
 
     if (this.state === 'walk') {
-      bounce = Math.abs(Math.sin(this.time * 8));
+      frame = `walk${Math.floor(this.time * WALK_FPS) % 4}`;
       if (this.moveTo(this.targetX, WALK_SPEED, dt)) {
         this.state = 'idle';
         this.idleTime = Phaser.Math.FloatBetween(0.5, 2);
@@ -99,17 +103,25 @@ export class Person {
         this.pickTarget();
         this.state = 'walk';
       }
+    } else if (this.state === 'scared') {
+      frame = 'scared';
     } else if (this.state === 'flee') {
-      bounce = Math.abs(Math.sin(this.time * 16)) * 2;
+      frame = `run${Math.floor(this.time * RUN_FPS) % 4}`;
       if (this.moveTo(this.doorX, RUN_SPEED, dt)) this.leave();
     }
 
     // Смотрит туда, куда идёт
     this.view.scaleX = this.dir;
-    if (this.state !== 'scared' && this.state !== 'gone') {
-      this.view.y = Math.round(this.feetY - bounce);
-    }
-    this.alarm.setPosition(this.view.x, this.view.y - 36);
+    this.sprite.setFrame(frame);
+    this.alarm.setPosition(this.view.x, this.view.y - 46);
+
+    // Тень: при свете лампы тянется в сторону от неё, без света — еле видна
+    const away = this.view.x - this.lamp.x;
+    const lit = this.lamp.power;
+    this.shadow
+      .setPosition(this.view.x + away * 0.04 * lit, this.feetY + 1)
+      .setDisplaySize(22 + Math.abs(away) * 0.1 * lit, 7)
+      .setAlpha((0.3 + 0.35 * lit) * this.view.alpha);
   }
 
   // Ушёл за дверь, вернётся позже
@@ -122,7 +134,6 @@ export class Person {
 
   comeBack() {
     this.alarm.setVisible(false);
-    this.mouth.setVisible(false);
     this.view.setPosition(this.doorX, this.feetY);
     this.scene.tweens.add({ targets: this.view, alpha: 1, duration: 300 });
     this.pickTarget();
