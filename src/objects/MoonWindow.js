@@ -198,5 +198,18 @@ export class MoonWindow {
     });
     lighting.addLight('moon-shaft', MOONLIGHT).setOrigin(0).setPosition(shaft.x, shaft.y).setAlpha(0.15);
     lighting.addGlow('moon-shaft', MOONLIGHT).setOrigin(0).setPosition(shaft.x, shaft.y).setAlpha(0.1);
+
+    // Пылинки в лунном луче: берём случайные точки, пока не попадём внутрь луча
+    const beam = new Phaser.Geom.Polygon(corners.flat());
+    scene.fx.motes(
+      MOONLIGHT,
+      (point) => {
+        do {
+          point.x = Phaser.Math.FloatBetween(shaft.x, shaft.x + shaft.w);
+          point.y = Phaser.Math.FloatBetween(y + SIZE, farY);
+        } while (!beam.contains(point.x, point.y));
+      },
+      24,
+    );
   }
 }

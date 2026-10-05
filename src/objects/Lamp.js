@@ -105,6 +105,21 @@ export class Lamp {
     // ...а поверх темноты — луч в воздухе и сияние самой лампочки
     this.beam = lighting.addGlow('lamp-cone', LIGHT).setOrigin(0.5, 0);
     this.shine = lighting.addGlow('light-soft', LIGHT).setScale(0.45);
+    // Вспышка на всю комнату, когда лампочка лопается
+    this.flash = lighting.addLight('light-soft', 0xfff4d0).setScale(8).setAlpha(0);
+    this.flickerLeft = 0; // сколько ещё лампочка моргает после включения
+
+    // Пылинки в луче: у пола луч шире — там их больше
+    this.motes = scene.fx.motes(
+      LIGHT,
+      (point) => {
+        const t = Math.sqrt(Math.random()); // 0 — у абажура, 1 — у пола
+        const half = SHADE_W / 2 + (LIGHT_HALF_WIDTH - SHADE_W / 2) * t;
+        point.x = x + Phaser.Math.FloatBetween(-half, half) * 0.85;
+        point.y = ceilingY + shadeBottom + (floorY - ceilingY - shadeBottom) * t;
+      },
+      40,
+    );
 
     // Крепление на потолке (не качается)
     scene.add.rectangle(x, ceilingY, 10, 2, MOUNT).setOrigin(0.5, 0);
@@ -162,6 +177,7 @@ export class Lamp {
   toggle() {
     if (this.isBroken) return;
     this.isOn = !this.isOn;
+    if (this.isOn) this.flickerLeft = 0.2;
     this.synth.click(this.isOn);
     this.applyLight();
   }
@@ -180,6 +196,13 @@ export class Lamp {
     cam.flash(100, 255, 245, 210);
     cam.shake(150, 0.005);
     this.spawnShards();
+
+    // Вспышка, искры и дымок из разбитой лампочки
+    const m = this.bulb.getWorldTransformMatrix();
+    this.flash.setPosition(m.tx, m.ty).setAlpha(1);
+    this.scene.tweens.add({ targets: this.flash, alpha: 0, duration: 350, ease: 'Quad.easeOut' });
+    this.scene.fx.sparks(m.tx, m.ty);
+    this.scene.fx.smoke(m.tx, m.ty);
   }
 
   applyLight() {
@@ -222,8 +245,11 @@ export class Lamp {
     const goal = this.isOn ? 1 : 0;
     this.power += (goal - this.power) * Math.min(1, dt * 30);
     if (Math.abs(goal - this.power) < 0.01) this.power = goal;
-    // Лампочка чуть мерцает
-    const p = this.power * (0.97 + 0.03 * Math.sin(this.time * 37) * Math.sin(this.time * 23));
+    // Лампочка чуть мерцает, а сразу после включения — моргает
+    let p = this.power * (0.97 + 0.03 * Math.sin(this.time * 37) * Math.sin(this.time * 23));
+    this.flickerLeft -= dt;
+    if (this.flickerLeft > 0) p *= Phaser.Math.FloatBetween(0.35, 1);
+    this.motes.setAlpha(p);
 
     // Абажур: с призраком внутри — цвета призрака, иначе просвечивает от лампочки
     this.shade.setTint(this.isPossessed ? SHADE_POSSESSED : mixColor(SHADE, SHADE_LIT, p));

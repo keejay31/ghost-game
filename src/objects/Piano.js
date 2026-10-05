@@ -16,7 +16,6 @@ const KEY_BLACK = 0x111014;
 const KEY_PRESSED = 0xfff2b0;
 const PEDAL = 0xd9ae38;
 const PEDAL_LIGHT = 0xfff2a8;
-const DUST = 0x8a7f74;
 
 const W = 92; // ширина
 const H = 72; // высота
@@ -143,6 +142,8 @@ export class Piano {
 
     const add = (rx, ry, w, h, color) => scene.add.rectangle(rx, ry, w, h, color).setOrigin(0);
     this.keyGlow = add(0, KEYS_Y, KEY_W - 1, 7, KEY_PRESSED).setVisible(false);
+    // Нажатая клавиша ещё и светит вокруг — в темноте видно, как пианино играет само
+    this.keyLight = scene.lighting.addLight('light-soft', KEY_PRESSED).setScale(0.6).setAlpha(0);
 
     // Откинутая крышка над клавишами — она и захлопывается
     this.lid = add(2, -38, W - 4, 5, WOOD_LIGHT);
@@ -210,6 +211,7 @@ export class Piano {
   showNote(freq) {
     const idx = Phaser.Math.Clamp(Math.round(Math.log2(freq / 110) * 7) + 3, 0, WHITE_KEYS - 1);
     this.keyGlow.setPosition(2 + idx * KEY_W, KEYS_Y).setVisible(true);
+    this.keyLight.setPosition(this.left + 2 + idx * KEY_W, this.floorY + KEYS_Y + 3);
     this.glowLeft = 0.15;
     this.bumpLeft = 0.08;
 
@@ -276,25 +278,15 @@ export class Piano {
       onComplete: () => text.destroy(),
     });
 
-    // Пыль из-под крышки
-    for (let i = 0; i < 10; i++) {
-      const dust = this.scene.add
-        .rectangle(this.left + Phaser.Math.Between(4, W - 4), this.floorY - 34, 2, 2, DUST)
-        .setDepth(6);
-      this.scene.tweens.add({
-        targets: dust,
-        x: dust.x + Phaser.Math.Between(-10, 10),
-        y: dust.y - Phaser.Math.Between(8, 20),
-        alpha: 0,
-        duration: Phaser.Math.Between(500, 800),
-        onComplete: () => dust.destroy(),
-      });
-    }
+    // Пыль из-под крышки и с пола
+    this.scene.fx.dust(this.x, this.floorY - 34, W / 2 - 4, 12);
+    this.scene.fx.dust(this.x, this.floorY - 1, W / 2 + 4, 10);
   }
 
   update(dt) {
     this.glowLeft -= dt;
     if (this.glowLeft <= 0) this.keyGlow.setVisible(false);
+    this.keyLight.setAlpha(Phaser.Math.Clamp(this.glowLeft / 0.15, 0, 1) * 0.6);
     this.bumpLeft -= dt;
     this.view.y = this.bumpLeft > 0 ? this.floorY - 1 : this.floorY;
   }

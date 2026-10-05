@@ -5,6 +5,7 @@ import { MoonWindow } from '../objects/MoonWindow.js';
 import { Person } from '../objects/Person.js';
 import { Piano } from '../objects/Piano.js';
 import { Lighting, mixColor } from '../fx/Lighting.js';
+import { Effects } from '../fx/Effects.js';
 import { paintRoom } from './roomArt.js';
 
 // Высота пола: от этой линии вниз — пол
@@ -36,8 +37,9 @@ export class RoomScene extends Phaser.Scene {
   create() {
     const { width } = this.scale;
 
-    // Свет и темнота (нужны предметам, поэтому создаются первыми)
+    // Свет, темнота и эффекты (нужны предметам, поэтому создаются первыми)
     this.lighting = new Lighting(this);
+    this.fx = new Effects(this, FLOOR_Y);
 
     // Стены, пол, потолок и дверь — одной картинкой; окно с луной — отдельно
     paintRoom(this, FLOOR_Y, CEILING_Y);

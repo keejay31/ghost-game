@@ -43,6 +43,8 @@ export class Ghost {
     this.light = scene.lighting.addLight('light-soft', GLOW);
     this.aura = scene.lighting.addGlow('light-soft', GLOW);
     this.glowTime = 0;
+    this.trailDue = 0; // сколько огоньков следа пора выпустить
+    this.imageIn = 0; // через сколько секунд оставить отпечаток
 
     this.keys = scene.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT');
   }
@@ -54,6 +56,7 @@ export class Ghost {
     this.vy = 0;
     this.scene.tweens.killTweensOf(this.view);
     this.scene.tweens.add({ targets: this.view, x, y, scale: 0.2, alpha: 0, duration: 150 });
+    this.scene.fx.swirlIn(x, y);
   }
 
   // Вылететь из предмета: из (fromX, fromY) в (toX, toY)
@@ -62,6 +65,7 @@ export class Ghost {
     this.y = toY;
     this.scene.tweens.killTweensOf(this.view);
     this.view.setPosition(fromX, fromY).setScale(0.2).setAlpha(0);
+    this.scene.fx.burst(fromX, fromY);
     this.scene.tweens.add({
       targets: this.view,
       x: toX,
@@ -130,6 +134,20 @@ export class Ghost {
     // Покачивание в воздухе
     const bob = Math.sin(this.time * 3) * 2;
     this.view.setPosition(Math.round(this.x), Math.round(this.y + bob));
+
+    // Светящийся след: чем быстрее летит, тем гуще
+    const speed = Math.hypot(this.vx, this.vy);
+    this.trailDue += dt * (4 + speed / 3);
+    while (this.trailDue >= 1) {
+      this.trailDue -= 1;
+      this.scene.fx.trail(this.view.x + Phaser.Math.Between(-7, 7), this.view.y + Phaser.Math.Between(0, 12));
+    }
+    // На большой скорости за призраком остаются тающие отпечатки
+    this.imageIn -= dt;
+    if (speed > MAX_SPEED * 0.6 && this.imageIn <= 0) {
+      this.scene.fx.afterimage(this.view, GLOW);
+      this.imageIn = 0.06;
+    }
   }
 
   animate(dt) {
