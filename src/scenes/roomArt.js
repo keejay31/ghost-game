@@ -34,10 +34,6 @@ const C = {
   brass: 0xd9ae38,
   brassLight: 0xfff2a8,
   brassDark: 0x8f6a1e,
-  frame: 0xa8823a, // рама портрета
-  frameLight: 0xe0bc60,
-  frameDark: 0x6a4c1c,
-  canvas: 0x33414a,
   web: 0xcfc6dd,
 };
 
@@ -46,45 +42,6 @@ const STRIPE = 16; // ширина полосы обоев
 const DIAMOND = ['...x...', '..xxx..', '.xx.xx.', 'xx...xx', '.xx.xx.', '..xxx..', '...x...'];
 
 const KNOB = ['.dOOd.', 'dOHHOd', 'OOHOOO', 'OOOOOd', 'dOOOdd', '.dddd.'];
-
-// Портрет: h — волосы, f — лицо, e — глаза, m — рот, n — шея, w — воротник, d — платье, b — пуговица
-const PORTRAIT = [
-  '......hhhhhh......',
-  '.....hhhhhhhh.....',
-  '....hhhhhhhhhh....',
-  '....hhffffffhh....',
-  '....hffffffffh....',
-  '....hfeeffeefh....',
-  '....hfeeffeefh....',
-  '....hffffffffh....',
-  '....hffffffffh....',
-  '.....ffmmmmff.....',
-  '.....ffffffff.....',
-  '......ffffff......',
-  '.......nnnn.......',
-  '.......nnnn.......',
-  '.....wwnnnnww.....',
-  '...ddwwwnnwwwdd...',
-  '..ddddwwwwwwdddd..',
-  '.dddddddwwddddddd.',
-  'dddddddddddddddddd',
-  'dddddddddbdddddddd',
-  'dddddddddddddddddd',
-  'dddddddddbdddddddd',
-  'dddddddddddddddddd',
-  'dddddddddbdddddddd',
-  ...Array(6).fill('dddddddddddddddddd'),
-];
-const PORTRAIT_COLORS = {
-  h: 0x1c1418,
-  f: 0xb9ad98,
-  e: 0x16101a,
-  m: 0x6a4a4a,
-  n: 0x9a8f7c,
-  w: 0xd8d2c4,
-  d: 0x2c2434,
-  b: 0x8a7a50,
-};
 
 // Нарисовать комнату одной картинкой и поставить её на сцену
 export function paintRoom(scene, floorY, ceilingY) {
@@ -97,7 +54,6 @@ export function paintRoom(scene, floorY, ceilingY) {
     paintCeiling(b, rnd, width, ceilingY);
     paintFloor(b, rnd, width, floorY);
     paintDoor(b, rnd, 40, 172, 64, floorY - 172);
-    paintPortrait(b, 176, 146);
     paintCobweb(b, 0, ceilingY, 1);
     paintCobweb(b, width - 1, ceilingY, -1);
   });
@@ -265,23 +221,6 @@ function paintDoor(b, rnd, x, y, w, h) {
 
   // Ручка
   b.stamp(x + 53, y + 56, KNOB, { O: C.brass, H: C.brassLight, d: C.brassDark });
-}
-
-function paintPortrait(b, x, y) {
-  // Гвоздь и верёвка
-  b.line(x + 18, y - 9, x + 7, y, C.frameDark);
-  b.line(x + 18, y - 9, x + 29, y, C.frameDark);
-  b.dot(x + 18, y - 10, C.brassLight);
-
-  // Тень на стене, рама, холст
-  b.rect(x + 2, y + 3, 36, 46, 0x000000, 0.3);
-  b.rect(x, y, 36, 46, C.frameDark);
-  b.rect(x, y, 35, 45, C.frameLight);
-  b.rect(x + 1, y + 1, 34, 44, C.frame);
-  b.rect(x + 4, y + 4, 28, 38, C.frameLight);
-  b.rect(x + 4, y + 4, 27, 37, C.frameDark);
-  b.rect(x + 5, y + 5, 26, 36, C.canvas);
-  b.stamp(x + 9, y + 11, PORTRAIT, PORTRAIT_COLORS);
 }
 
 // Паутина в углу под потолком: side = 1 — левый угол, -1 — правый

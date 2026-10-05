@@ -4,6 +4,7 @@ import { Lamp } from '../objects/Lamp.js';
 import { MoonWindow } from '../objects/MoonWindow.js';
 import { Person } from '../objects/Person.js';
 import { Piano } from '../objects/Piano.js';
+import { Portrait } from '../objects/Portrait.js';
 import { Lighting, mixColor } from '../fx/Lighting.js';
 import { Effects } from '../fx/Effects.js';
 import { paintRoom } from './roomArt.js';
@@ -45,10 +46,11 @@ export class RoomScene extends Phaser.Scene {
     paintRoom(this, FLOOR_Y, CEILING_Y);
     new MoonWindow(this, 444, 74, FLOOR_Y);
 
-    // Лампа под потолком и пианино у стены
+    // Лампа под потолком, пианино у стены, портрет на стене
     this.lamp = new Lamp(this, 300, CEILING_Y, FLOOR_Y);
     this.piano = new Piano(this, 520, FLOOR_Y);
-    this.items = [this.lamp, this.piano]; // во что можно вселиться
+    this.portrait = new Portrait(this, 200, 102);
+    this.items = [this.lamp, this.piano, this.portrait]; // во что можно вселиться
 
     this.lamp.events.on('light', (isOn) => {
       // Погасший свет пугает только тех, кто стоял в луче
