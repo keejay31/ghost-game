@@ -14,6 +14,11 @@ const WAVE_FPS = 8; // кадров в секунду у волны по хво�
 const GLOW = 0x66c2fd; // призрак светится своим цветом
 const PEEK_SCALE = 2; // во сколько раз призрак больше, когда высовывается из предмета
 
+// Призрак на 15% больше рисунка автора: эти столбцы и ряды пикселей рисуются дважды.
+// Выбраны так, чтобы глаза и рот остались такими же, а раздвинулось всё вокруг них
+const WIDER = [8, 12, 15, 19];
+const TALLER = [3, 10, 16, 21];
+
 export class Ghost {
   // Загрузить картинку призрака (вызывать в preload сцены)
   static preload(scene) {
@@ -32,7 +37,7 @@ export class Ghost {
     this.time = 0;
 
     // Призрак по рисунку автора, с анимацией
-    this.sprite = new GhostSprite(scene, 'ghost-front', 'ghost-anim');
+    this.sprite = new GhostSprite(scene, 'ghost-front', 'ghost-anim', WIDER, TALLER);
     this.view = scene.add.image(x, y, this.sprite.key).setDepth(20);
     this.facing = 0; // -1 — смотрит влево, 1 — вправо, 0 — на нас
     this.look = 0; // текущий сдвиг лица

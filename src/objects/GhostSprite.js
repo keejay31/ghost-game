@@ -1,24 +1,38 @@
 // Живой спрайт призрака: из одной картинки автора собирает кадры —
 // взгляд влево/вправо, наклон в полёте, волна по хвосту, моргание.
 // Всё сдвигами целых пикселей, без размытия.
+// Призрак может быть больше рисунка: тогда часть столбцов и рядов пикселей рисуется дважды.
 
 const PAD = 3; // запас по бокам картинки для сдвигов
 
 export class GhostSprite {
-  constructor(scene, sourceKey, key) {
+  // wider и taller — номера столбцов и рядов рисунка, которые надо нарисовать дважды
+  constructor(scene, sourceKey, key, wider = [], taller = []) {
     const src = scene.textures.get(sourceKey).getSourceImage();
-    this.w = src.width;
-    this.h = src.height;
     this.key = key;
     this.lastState = '';
 
     // Читаем пиксели картинки
     const canvas = document.createElement('canvas');
-    canvas.width = this.w;
-    canvas.height = this.h;
+    canvas.width = src.width;
+    canvas.height = src.height;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(src, 0, 0);
-    this.px = ctx.getImageData(0, 0, this.w, this.h).data;
+    const original = ctx.getImageData(0, 0, src.width, src.height).data;
+
+    // Растягиваем: откуда брать каждый столбец и ряд увеличенной картинки
+    const repeat = (count, twice) => [...Array(count).keys()].flatMap((i) => (twice.includes(i) ? [i, i] : [i]));
+    const cols = repeat(src.width, wider);
+    const rows = repeat(src.height, taller);
+    this.w = cols.length;
+    this.h = rows.length;
+    this.px = new Uint8ClampedArray(this.w * this.h * 4);
+    rows.forEach((sy, y) => {
+      cols.forEach((sx, x) => {
+        const from = (sy * src.width + sx) * 4;
+        this.px.set(original.subarray(from, from + 4), (y * this.w + x) * 4);
+      });
+    });
 
     this.findFace();
 

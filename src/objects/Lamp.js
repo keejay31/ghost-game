@@ -4,10 +4,14 @@ import { makeLightTexture, mixColor } from '../fx/Lighting.js';
 import { makeArt } from '../fx/pixelArt.js';
 
 // Цвета лампы
-const CORD = 0x0a0810;
-const MOUNT = 0x433456; // крепление на потолке
-const SHADE = 0x8a66a0;
-const SHADE_LIT = 0xf0b4a4; // абажур просвечивает, когда лампа горит
+const ROSE = 0x6e5a80; // лепная розетка на потолке — как карниз комнаты
+const ROSE_LIGHT = 0x8c76a2;
+const ROSE_DARK = 0x433456;
+const BRASS = 0xd9ae38; // цепь, колпачок, тесьма и бахрома
+const BRASS_LIGHT = 0xfff2a8;
+const BRASS_DARK = 0x8f6a1e;
+const SHADE = 0xa04a5c; // бордовая ткань
+const SHADE_LIT = 0xffb890; // абажур просвечивает, когда лампа горит
 const SHADE_POSSESSED = 0x66c2fd; // абажур, когда внутри призрак (цвет призрака)
 const BULB_ON = 0xfff2b0;
 const BULB_OFF = 0x9a917c;
@@ -15,18 +19,20 @@ const BULB_BROKEN = 0x6b6455;
 const LIGHT = 0xffe0a8; // тёплый свет лампы
 const GLASS = 0xe8f4ff;
 
-const CORD_LEN = 36;
-const SHADE_W = 26;
-const SHADE_H = 12;
-const SHADE_TOP_W = 10; // абажур сужается кверху
+const CHAIN_LEN = 26;
+const SHADE_W = 42;
+const SHADE_H = 24;
+const SHADE_TOP_W = 14; // абажур сужается кверху
+const RIBS = 6; // на сколько клиньев абажур разделён каркасом
+const FRINGE = 6; // длина бахромы
 const LIGHT_HALF_WIDTH = 120; // полуширина луча у пола
-const POSSESS_DISTANCE = 36; // с какого расстояния можно вселиться
+const POSSESS_DISTANCE = 44; // с какого расстояния можно вселиться
 
 // Рисунок света лампы: конус от абажура до пола с мягкими краями и пятно на полу.
-// Верх картинки — потолок, середина по ширине — шнур
+// Верх картинки — потолок, середина по ширине — цепь
 function makeConeTexture(scene, toFloor, height) {
   const w = (LIGHT_HALF_WIDTH + 40) * 2;
-  const top = CORD_LEN + SHADE_H; // низ абажура
+  const top = CHAIN_LEN + SHADE_H; // низ абажура
   const smooth = Phaser.Math.SmoothStep;
   makeLightTexture(scene, 'lamp-cone', w, height, (px, py) => {
     const x = Math.abs(px - w / 2);
@@ -44,38 +50,75 @@ function makeConeTexture(scene, toFloor, height) {
   });
 }
 
-// Нарисовать абажур и лампочку. Они серые: цвет им даёт игра (горит, не горит, внутри призрак)
+// Полуширина абажура в ряду row: колокол — кверху узкий, книзу расходится
+function shadeHalf(row) {
+  const t = row / (SHADE_H - 1);
+  return Math.round(SHADE_TOP_W / 2 + ((SHADE_W - SHADE_TOP_W) / 2) * (0.35 * t + 0.65 * t * t));
+}
+
+// Нарисовать лампу: абажур, латунные детали и лампочку. Абажур и лампочка серые:
+// цвет им даёт игра (горит, не горит, внутри призрак)
 function paintLamp(scene) {
   const gray = (v) => {
-    const g = Phaser.Math.Clamp(Math.round(v / 32) * 32, 0, 255); // несколько ступеней яркости
+    const g = Phaser.Math.Clamp(Math.round(v / 24) * 24, 0, 255); // несколько ступеней яркости
     return (g << 16) | (g << 8) | g;
   };
+  const cx = SHADE_W / 2;
 
-  makeArt(scene, 'lamp-shade', SHADE_W, SHADE_H + 2, (b) => {
+  makeArt(scene, 'lamp-shade', SHADE_W, SHADE_H, (b) => {
     for (let row = 0; row < SHADE_H; row++) {
-      const w = SHADE_TOP_W + Math.round(((SHADE_W - SHADE_TOP_W) * row) / (SHADE_H - 1) / 2) * 2;
-      const x0 = (SHADE_W - w) / 2;
-      for (let i = 0; i < w; i++) {
-        const side = Math.abs((i + 0.5) / w - 0.4); // блик чуть левее середины
-        const fold = (i + row) % 5 === 0 ? 30 : 0; // складки ткани
-        b.dot(x0 + i, row, gray(255 - side * 190 - fold));
+      const half = shadeHalf(row);
+      for (let i = 0; i < half * 2; i++) {
+        const u = (i + 0.5) / (half * 2); // 0 — левый край, 1 — правый
+        const rib = Math.round(u * half * 2) % Math.round((half * 2) / RIBS) === 0; // рёбра каркаса
+        const side = Math.abs(u - 0.38); // блик чуть левее середины
+        b.dot(cx - half + i, row, gray(255 - side * 230 - (rib ? 44 : 0) - (row < 2 ? 40 : 0)));
       }
     }
-    // Ободки сверху и снизу, бахрома
-    b.rect((SHADE_W - SHADE_TOP_W) / 2, 0, SHADE_TOP_W, 1, gray(150));
-    b.rect(0, SHADE_H - 1, SHADE_W, 1, gray(160));
-    for (let x = 0; x < SHADE_W; x += 2) b.rect(x, SHADE_H, 1, 2, gray(200));
   });
 
-  makeArt(scene, 'lamp-bulb', 6, 6, (b) => {
-    b.stamp(0, 0, ['.wwww.', 'wWWwww', 'wWwwww', 'wwwwww', '.wwww.', '..ww..'], { w: 0xdddddd, W: 0xffffff });
+  makeArt(scene, 'lamp-metal', SHADE_W, CHAIN_LEN + SHADE_H + FRINGE, (b) => {
+    // Цепь: звенья по очереди — плашмя и ребром
+    for (let y = 4; y < CHAIN_LEN - 6; y += 6) {
+      b.rect(cx - 1, y, 2, 1, BRASS);
+      b.rect(cx - 2, y + 1, 1, 3, BRASS);
+      b.rect(cx + 1, y + 1, 1, 3, BRASS_DARK);
+      b.rect(cx - 1, y + 4, 2, 1, BRASS_DARK);
+      b.rect(cx - 1, y + 3, 2, 4, BRASS_DARK);
+      b.rect(cx - 1, y + 3, 1, 4, BRASS);
+    }
+
+    // Колпачок над абажуром
+    [4, 8, 10, 12, SHADE_TOP_W, SHADE_TOP_W].forEach((w, i) => {
+      const y = CHAIN_LEN - 5 + i;
+      b.rect(cx - w / 2, y, w, 1, i === 5 ? BRASS_DARK : BRASS);
+      if (i < 5) b.rect(cx - w / 2 + 1, y, 2, 1, BRASS_LIGHT);
+    });
+
+    // Тесьма по нижнему краю
+    const bottom = CHAIN_LEN + SHADE_H;
+    b.rect(0, bottom - 3, SHADE_W, 2, BRASS);
+    b.rect(0, bottom - 1, SHADE_W, 1, BRASS_DARK);
+    for (let x = 1; x < SHADE_W; x += 3) b.dot(x, bottom - 3, BRASS_LIGHT);
+
+    // Бахрома: нити разной длины с бусинами на концах
+    for (let x = 0; x < SHADE_W; x += 2) {
+      const len = FRINGE - 2 + ((x / 2) % 3);
+      b.rect(x, bottom, 1, len, (x / 2) % 2 ? BRASS_DARK : BRASS);
+      b.dot(x, bottom + len - 1, BRASS_LIGHT);
+    }
   });
-  makeArt(scene, 'lamp-bulb-broken', 6, 6, (b) => {
-    b.stamp(0, 0, ['.wwww.', 'w.ww.w', '..w...'], { w: 0xffffff });
+
+  makeArt(scene, 'lamp-bulb', 8, 9, (b) => {
+    const rows = ['..wwww..', '.wWWwww.', 'wWWwwwww', 'wWwwwwww', 'wwwwwwww', 'wwwwwwww', '.wwwwww.', '..wwww..', '...ww...'];
+    b.stamp(0, 0, rows, { w: 0xdddddd, W: 0xffffff });
+  });
+  makeArt(scene, 'lamp-bulb-broken', 8, 9, (b) => {
+    b.stamp(0, 0, ['..wwww..', '.ww.www.', 'w..w..ww', '...w...w'], { w: 0xffffff });
   });
 }
 
-// Лампа на шнуре под потолком
+// Лампа под потолком: абажур с бахромой на цепи
 export class Lamp {
   constructor(scene, x, ceilingY, floorY) {
     this.scene = scene;
@@ -93,18 +136,18 @@ export class Lamp {
 
     // Центр абажура — к нему подлетает призрак
     this.x = x;
-    this.y = ceilingY + CORD_LEN + SHADE_H / 2;
+    this.y = ceilingY + CHAIN_LEN + SHADE_H / 2;
 
     // Свет: конус до пола и ореол вокруг лампочки освещают комнату...
     const lighting = scene.lighting;
-    const shadeBottom = CORD_LEN + SHADE_H;
+    const shadeBottom = CHAIN_LEN + SHADE_H;
     makeConeTexture(scene, floorY - ceilingY, scene.scale.height - ceilingY);
     this.cone = lighting.addLight('lamp-cone', LIGHT).setOrigin(0.5, 0);
-    this.halo = lighting.addLight('light-soft', LIGHT).setScale(1.2);
+    this.halo = lighting.addLight('light-soft', LIGHT).setScale(1.5);
     this.fill = lighting.addLight('light-soft', LIGHT).setScale(5); // слабый свет на всю комнату
     // ...а поверх темноты — луч в воздухе и сияние самой лампочки
     this.beam = lighting.addGlow('lamp-cone', LIGHT).setOrigin(0.5, 0);
-    this.shine = lighting.addGlow('light-soft', LIGHT).setScale(0.45);
+    this.shine = lighting.addGlow('light-soft', LIGHT).setScale(0.6);
     // Вспышка на всю комнату, когда лампочка лопается
     this.flash = lighting.addLight('light-soft', 0xfff4d0).setScale(8).setAlpha(0);
     this.flickerLeft = 0; // сколько ещё лампочка моргает после включения
@@ -121,25 +164,26 @@ export class Lamp {
       40,
     );
 
-    // Крепление на потолке (не качается)
-    scene.add.rectangle(x, ceilingY, 10, 2, MOUNT).setOrigin(0.5, 0);
-    scene.add.rectangle(x, ceilingY + 2, 6, 2, MOUNT).setOrigin(0.5, 0);
+    // Лепная розетка на потолке (не качается)
+    scene.add.rectangle(x, ceilingY, 26, 2, ROSE_LIGHT).setOrigin(0.5, 0);
+    scene.add.rectangle(x, ceilingY + 2, 18, 2, ROSE).setOrigin(0.5, 0);
+    scene.add.rectangle(x, ceilingY + 4, 8, 2, ROSE_DARK).setOrigin(0.5, 0);
 
     paintLamp(scene);
-    const cord = scene.add.rectangle(0, 0, 2, CORD_LEN, CORD).setOrigin(0.5, 0);
-    this.bulb = scene.add.image(0, shadeBottom + 2, 'lamp-bulb').setTint(BULB_ON);
-    this.shade = scene.add.image(0, CORD_LEN, 'lamp-shade').setOrigin(0.5, 0);
+    this.bulb = scene.add.image(0, shadeBottom + 3, 'lamp-bulb').setTint(BULB_ON);
+    this.shade = scene.add.image(0, CHAIN_LEN, 'lamp-shade').setOrigin(0.5, 0);
+    const metal = scene.add.image(0, 0, 'lamp-metal').setOrigin(0.5, 0);
 
     // Глаза призрака на абажуре — видны, только когда он внутри
-    const eyeY = CORD_LEN + 5;
+    const eyeY = CHAIN_LEN + 13;
     this.eyes = [
-      scene.add.rectangle(-4, eyeY, 3, 4, 0x041347),
-      scene.add.rectangle(4, eyeY, 3, 4, 0x041347),
+      scene.add.rectangle(-7, eyeY, 4, 6, 0x041347),
+      scene.add.rectangle(7, eyeY, 4, 6, 0x041347),
     ];
     this.eyes.forEach((e) => e.setVisible(false));
 
     // Всё вместе качается вокруг точки на потолке
-    this.view = scene.add.container(x, ceilingY, [cord, this.bulb, this.shade, ...this.eyes]);
+    this.view = scene.add.container(x, ceilingY, [this.bulb, this.shade, metal, ...this.eyes]);
   }
 
   isNear(x, y) {
@@ -148,7 +192,7 @@ export class Lamp {
 
   // Куда вылетает призрак — под лампу
   get exitPoint() {
-    return { x: this.x, y: this.y + 34 };
+    return { x: this.x, y: this.y + SHADE_H / 2 + 24 };
   }
 
   actionsHint() {
@@ -263,6 +307,6 @@ export class Lamp {
     this.beam.setPosition(this.view.x, this.view.y).setRotation(rot).setAlpha(p * 0.1);
     this.halo.setPosition(bulbX, bulbY).setAlpha(p * 0.6);
     this.fill.setPosition(bulbX, bulbY).setAlpha(p * 0.4);
-    this.shine.setPosition(bulbX, bulbY).setAlpha(p * 0.8);
+    this.shine.setPosition(bulbX, bulbY).setAlpha(p * 0.6);
   }
 }
