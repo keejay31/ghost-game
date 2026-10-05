@@ -5,18 +5,7 @@ import { MoonWindow } from '../objects/MoonWindow.js';
 import { Person } from '../objects/Person.js';
 import { Piano } from '../objects/Piano.js';
 import { Lighting, mixColor } from '../fx/Lighting.js';
-
-// Цвета комнаты при полном свете (темноту добавляет освещение), графика пока заглушки
-const COLORS = {
-  ceiling: 0x2b2438,
-  wall: 0x54466b,
-  wallStripe: 0x5f5078,
-  baseboard: 0x7a6490,
-  floor: 0x6b4c40,
-  floorLine: 0x553a32,
-  door: 0x6a4a34,
-  doorKnob: 0xe6bc3c,
-};
+import { paintRoom } from './roomArt.js';
 
 // Высота пола: от этой линии вниз — пол
 export const FLOOR_Y = 300;
@@ -45,33 +34,14 @@ export class RoomScene extends Phaser.Scene {
   }
 
   create() {
-    const { width, height } = this.scale;
+    const { width } = this.scale;
 
     // Свет и темнота (нужны предметам, поэтому создаются первыми)
     this.lighting = new Lighting(this);
 
-    // Потолок и стена
-    this.add.rectangle(0, 0, width, 24, COLORS.ceiling).setOrigin(0);
-    this.add.rectangle(0, 24, width, FLOOR_Y - 24, COLORS.wall).setOrigin(0);
-
-    // Полосы обоев
-    for (let x = 16; x < width; x += 48) {
-      this.add.rectangle(x, 24, 8, FLOOR_Y - 24, COLORS.wallStripe).setOrigin(0);
-    }
-
-    // Окно с луной
+    // Стены, пол, потолок и дверь — одной картинкой; окно с луной — отдельно
+    paintRoom(this, FLOOR_Y, CEILING_Y);
     new MoonWindow(this, 444, 74, FLOOR_Y);
-
-    // Дверь
-    this.add.rectangle(40, 172, 64, FLOOR_Y - 172, COLORS.door).setOrigin(0);
-    this.add.rectangle(92, 236, 6, 6, COLORS.doorKnob).setOrigin(0);
-
-    // Плинтус и пол
-    this.add.rectangle(0, FLOOR_Y - 6, width, 6, COLORS.baseboard).setOrigin(0);
-    this.add.rectangle(0, FLOOR_Y, width, height - FLOOR_Y, COLORS.floor).setOrigin(0);
-    for (let x = 0; x < width; x += 64) {
-      this.add.rectangle(x, FLOOR_Y, 2, height - FLOOR_Y, COLORS.floorLine).setOrigin(0);
-    }
 
     // Лампа под потолком и пианино у стены
     this.lamp = new Lamp(this, 300, CEILING_Y, FLOOR_Y);
