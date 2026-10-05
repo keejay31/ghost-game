@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Synth } from '../audio/Synth.js';
 
 // Цвета лампы (заглушки)
 const CORD = 0x0a0810;
@@ -20,6 +21,7 @@ const POSSESS_DISTANCE = 36; // с какого расстояния можно 
 export class Lamp {
   constructor(scene, x, ceilingY, floorY) {
     this.scene = scene;
+    this.synth = new Synth(scene);
     this.label = 'лампу'; // для подсказки «вселиться в …»
     this.floorY = floorY;
     this.isOn = true;
@@ -113,6 +115,7 @@ export class Lamp {
   toggle() {
     if (this.isBroken) return;
     this.isOn = !this.isOn;
+    this.synth.click(this.isOn);
     this.applyLight();
   }
 
@@ -125,6 +128,7 @@ export class Lamp {
     this.events.emit('pop');
     this.applyLight();
 
+    this.synth.shatter();
     const cam = this.scene.cameras.main;
     cam.flash(100, 255, 245, 210);
     cam.shake(150, 0.005);
@@ -149,6 +153,7 @@ export class Lamp {
         y: { value: this.floorY + Phaser.Math.Between(0, 6), ease: 'Quad.easeIn' },
         duration: Phaser.Math.Between(400, 650),
         onComplete: () => {
+          if (i % 2 === 0) this.synth.tink(); // осколок звякнул об пол
           this.scene.tweens.add({
             targets: shard,
             alpha: 0,

@@ -8,7 +8,7 @@ export class Synth {
   get ctx() {
     const ctx = this.sound.context;
     if (!ctx) return null;
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {}); // браузер мог не разрешить — не страшно
     return ctx;
   }
 
@@ -59,39 +59,67 @@ export class Synth {
     }
   }
 
-  // Громкий «бабах»: шумовой удар + низкий гул + гудящие низкие струны
-  bang(dest = this.out) {
+  // Шумовой удар, который быстро затихает. filter — 'lowpass' (глухо) или 'highpass'/'bandpass' (звонко)
+  noise(dur, vol, filter, freq, delay = 0, dest = this.out) {
     const ctx = this.ctx;
     if (!ctx) return;
-    const t = ctx.currentTime;
-
-    // Шум удара
-    const len = Math.floor(ctx.sampleRate * 0.5);
+    const t = ctx.currentTime + delay;
+    const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3;
-    const noise = ctx.createBufferSource();
-    noise.buffer = buf;
-    const lowpass = ctx.createBiquadFilter();
-    lowpass.type = 'lowpass';
-    lowpass.frequency.value = 900;
-    const ng = ctx.createGain();
-    ng.gain.value = 0.9;
-    noise.connect(lowpass).connect(ng).connect(dest);
-    noise.start(t);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = filter;
+    f.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.value = vol;
+    src.connect(f).connect(g).connect(dest);
+    src.start(t);
+  }
 
-    // Низкий «бум»
-    const thud = ctx.createOscillator();
-    thud.frequency.setValueAtTime(90, t);
-    thud.frequency.exponentialRampToValueAtTime(35, t + 0.4);
-    const tg = ctx.createGain();
-    tg.gain.setValueAtTime(0.9, t);
-    tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
-    thud.connect(tg).connect(dest);
-    thud.start(t);
-    thud.stop(t + 0.6);
+  // Короткий затухающий тон; toFreq — куда «съезжает» высота
+  tone(freq, dur, vol, { type = 'sine', delay = 0, toFreq = freq, dest = this.out } = {}) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    if (toFreq !== freq) osc.frequency.exponentialRampToValueAtTime(toFreq, t + dur * 0.7);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g).connect(dest);
+    osc.start(t);
+    osc.stop(t + dur);
+  }
 
-    // Струны внутри гудят
-    for (const f of [55, 58.27, 61.74, 82.41, 87.31]) this.note(f, 0.01, 2.5, 0.08, dest);
+  // Громкий «бабах»: шумовой удар + низкий гул + гудящие низкие струны
+  bang() {
+    this.noise(0.5, 0.6, 'lowpass', 900);
+    this.tone(90, 0.6, 0.6, { toFreq: 35 });
+    for (const f of [55, 58.27, 61.74, 82.41, 87.31]) this.note(f, 0.01, 2.5, 0.08);
+  }
+
+  // Щелчок выключателя: включить — чуть выше, выключить — чуть ниже
+  click(on) {
+    this.noise(0.02, 0.22, 'highpass', 2500);
+    this.tone(on ? 1900 : 1300, 0.03, 0.06, { type: 'square' });
+  }
+
+  // Лампочка лопнула: хлопок + звон стекла
+  shatter() {
+    this.noise(0.08, 0.7, 'lowpass', 1500);
+    this.tone(160, 0.12, 0.4, { toFreq: 60 });
+    this.noise(0.3, 0.35, 'bandpass', 4000, 0.01);
+    for (let i = 0; i < 6; i++) this.tink(Math.random() * 0.15);
+  }
+
+  // Звяк осколка
+  tink(delay = 0) {
+    const freq = 3000 + Math.random() * 4000;
+    this.tone(freq, 0.12, 0.09, { delay, toFreq: freq * 0.97 });
   }
 }
