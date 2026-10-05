@@ -25,23 +25,12 @@ const C = {
   planks: [0x7a5440, 0x71493a, 0x835b45, 0x6a4636],
   plankGap: 0x35211d,
   plankLight: 0x9a7252,
-  door: 0x6e4a34,
-  doorPanel: 0x664430,
-  doorLight: 0x8c6246,
-  doorDark: 0x4a3023,
-  doorGap: 0x1a1014,
-  casing: 0x54372b,
-  brass: 0xd9ae38,
-  brassLight: 0xfff2a8,
-  brassDark: 0x8f6a1e,
   web: 0xcfc6dd,
 };
 
 const STRIPE = 16; // ширина полосы обоев
 
 const DIAMOND = ['...x...', '..xxx..', '.xx.xx.', 'xx...xx', '.xx.xx.', '..xxx..', '...x...'];
-
-const KNOB = ['.dOOd.', 'dOHHOd', 'OOHOOO', 'OOOOOd', 'dOOOdd', '.dddd.'];
 
 // Нарисовать комнату одной картинкой и поставить её на сцену
 export function paintRoom(scene, floorY, ceilingY) {
@@ -53,7 +42,6 @@ export function paintRoom(scene, floorY, ceilingY) {
     paintWall(b, rnd, width, ceilingY, floorY);
     paintCeiling(b, rnd, width, ceilingY);
     paintFloor(b, rnd, width, floorY);
-    paintDoor(b, rnd, 40, 172, 64, floorY - 172);
     paintCobweb(b, 0, ceilingY, 1);
     paintCobweb(b, width - 1, ceilingY, -1);
   });
@@ -196,31 +184,6 @@ function paintFloor(b, rnd, width, top) {
   }
   // Тень под плинтусом
   b.rect(0, top, width, 3, 0x000000, 0.3);
-}
-
-function paintDoor(b, rnd, x, y, w, h) {
-  // Наличник и тёмная щель вокруг двери
-  b.rect(x - 5, y - 5, w + 10, h + 5, C.casing);
-  b.rect(x - 5, y - 5, w + 10, 1, C.doorLight);
-  b.rect(x - 5, y - 5, 1, h + 5, C.doorLight);
-  b.rect(x + w + 4, y - 5, 1, h + 5, C.doorDark);
-  b.rect(x - 1, y - 1, w + 2, h + 1, C.doorGap);
-
-  // Полотно двери, внизу щель
-  b.rect(x, y, w, h - 2, C.door);
-  for (let i = 0; i < 16; i++) {
-    b.rect(x + rnd.between(1, w - 2), y + rnd.between(0, h - 24), 1, rnd.between(8, 20), 0x000000, 0.08);
-  }
-
-  // Четыре филёнки: углублены, тень сверху-слева, блик снизу-справа
-  for (const [px, py, pw, ph] of [[6, 8, 22, 44], [36, 8, 22, 44], [6, 66, 22, 52], [36, 66, 22, 52]]) {
-    b.rect(x + px, y + py, pw, ph, C.doorLight);
-    b.rect(x + px, y + py, pw - 1, ph - 1, C.doorDark);
-    b.rect(x + px + 1, y + py + 1, pw - 2, ph - 2, C.doorPanel);
-  }
-
-  // Ручка
-  b.stamp(x + 53, y + 56, KNOB, { O: C.brass, H: C.brassLight, d: C.brassDark });
 }
 
 // Паутина в углу под потолком: side = 1 — левый угол, -1 — правый

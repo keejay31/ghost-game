@@ -117,6 +117,18 @@ export class Synth {
     for (let i = 0; i < 6; i++) this.tink(Math.random() * 0.15);
   }
 
+  // Скрип двери: тон ползёт вверх
+  creak() {
+    this.tone(280, 0.3, 0.05, { type: 'sawtooth', toFreq: 470 });
+    this.tone(560, 0.25, 0.025, { type: 'square', toFreq: 720, delay: 0.05 });
+  }
+
+  // Дверь закрылась: тихий стук или громкий хлопок
+  slam(loud) {
+    this.noise(0.12, loud ? 0.6 : 0.2, 'lowpass', 500);
+    this.tone(110, 0.18, loud ? 0.4 : 0.12, { toFreq: 50 });
+  }
+
   // Глаза портрета загорелись: тонкий звон и низкий гул
   stare() {
     this.tone(1318, 0.7, 0.05);

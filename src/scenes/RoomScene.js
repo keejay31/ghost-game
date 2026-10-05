@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { Door } from '../objects/Door.js';
 import { Ghost } from '../objects/Ghost.js';
 import { Lamp } from '../objects/Lamp.js';
 import { MoonWindow } from '../objects/MoonWindow.js';
@@ -25,9 +26,6 @@ const FEAR_PIANO_SLAM = 3;
 const FEAR_PORTRAIT_LOOK = 1;
 const FEAR_PORTRAIT_BOO = 3;
 
-// Середина двери — туда убегают люди
-const DOOR_X = 72;
-
 export class RoomScene extends Phaser.Scene {
   constructor() {
     super('RoomScene');
@@ -44,9 +42,10 @@ export class RoomScene extends Phaser.Scene {
     this.lighting = new Lighting(this);
     this.fx = new Effects(this, FLOOR_Y);
 
-    // Стены, пол, потолок и дверь — одной картинкой; окно с луной — отдельно
+    // Стены, пол и потолок — одной картинкой; окно с луной и дверь — отдельно
     paintRoom(this, FLOOR_Y, CEILING_Y);
     new MoonWindow(this, 444, 74, FLOOR_Y);
+    this.door = new Door(this, 40, 172, FLOOR_Y); // через неё убегают люди
 
     // Лампа под потолком, пианино у стены, портрет на стене
     this.lamp = new Lamp(this, 300, CEILING_Y, FLOOR_Y);
@@ -75,7 +74,7 @@ export class RoomScene extends Phaser.Scene {
     });
 
     // Люди
-    const walkArea = { minX: 150, maxX: 600, doorX: DOOR_X, lamp: this.lamp };
+    const walkArea = { minX: 150, maxX: 600, door: this.door, lamp: this.lamp };
     const blue = { shirt: 0x5a82aa, skin: 0xd9a982, hair: 0x3a2418, pants: 0x3a3650 };
     const red = { shirt: 0xaa5a6e, skin: 0xc28a6a, hair: 0x1a1210, pants: 0x4a3a34, longHair: true };
     this.people = [
@@ -135,6 +134,7 @@ export class RoomScene extends Phaser.Scene {
     }
 
     this.items.forEach((item) => item.update(dt));
+    this.door.update(dt);
     this.ghost.update(dt);
     this.people.forEach((p) => p.update(dt));
     this.updateHint(near);
