@@ -1,15 +1,17 @@
 import Phaser from 'phaser';
-import { makePersonTexture } from './personArt.js';
+import { makePersonTexture, PERSON_HEIGHT, STEP_FRAMES, WALK_STEP, RUN_STEP } from './personArt.js';
 
 const WALK_SPEED = 30;
 const RUN_SPEED = 150;
 const RETURN_DELAY = 5000; // через сколько мс человек вернётся после испуга
-const WALK_FPS = 10; // кадров анимации в секунду
-const RUN_FPS = 16;
+// Кадров анимации в секунду: за цикл шага человек проходит 4 длины шага — тогда ноги не скользят
+const WALK_FPS = (WALK_SPEED / (WALK_STEP * 4)) * STEP_FRAMES;
+const RUN_FPS = (RUN_SPEED / (RUN_STEP * 4)) * STEP_FRAMES;
+const JUMP = 22; // на сколько подпрыгивает от испуга
 
 // Человек: ходит по комнате, пугается, убегает за дверь и возвращается
 export class Person {
-  // options: x, feetY, shirt, skin, hair, pants, minX, maxX, doorX, lamp
+  // options: x, feetY, shirt, skin, hair, pants, longHair, minX, maxX, doorX, lamp
   constructor(scene, options) {
     this.scene = scene;
     const { x, ...rest } = options; // x хранится в view, тут — остальное
@@ -24,11 +26,17 @@ export class Person {
 
     // Картинка со всеми позами (у каждой расцветки — своя)
     const key = `person-${this.shirt}-${this.skin}`;
-    makePersonTexture(scene, key, { shirt: this.shirt, skin: this.skin, hair: this.hair, pants: this.pants });
+    makePersonTexture(scene, key, {
+      shirt: this.shirt,
+      skin: this.skin,
+      hair: this.hair,
+      pants: this.pants,
+      longHair: this.longHair,
+    });
     this.sprite = scene.add.image(0, 1, key, 'idle').setOrigin(0.5, 1);
     // «!» рисуется поверх темноты — его видно и без света
     this.alarm = scene.add
-      .text(0, 0, '!', { fontFamily: 'monospace', fontSize: '12px', color: '#ffe066' })
+      .text(0, 0, '!', { fontFamily: 'monospace', fontSize: '16px', color: '#ffe066' })
       .setOrigin(0.5, 1)
       .setDepth(15)
       .setVisible(false);
@@ -46,7 +54,7 @@ export class Person {
     return this.view.x;
   }
   get headY() {
-    return this.feetY - 60;
+    return this.feetY - PERSON_HEIGHT - JUMP - 30;
   }
 
   canBeScared() {
@@ -60,8 +68,8 @@ export class Person {
     this.alarm.setVisible(true);
     this.scene.tweens.add({
       targets: this.view,
-      y: this.feetY - 12,
-      duration: 120,
+      y: this.feetY - JUMP,
+      duration: 140,
       yoyo: true,
       ease: 'Quad.easeOut',
       onComplete: () => {
@@ -92,7 +100,7 @@ export class Person {
     let frame = 'idle';
 
     if (this.state === 'walk') {
-      frame = `walk${Math.floor(this.time * WALK_FPS) % 4}`;
+      frame = `walk${Math.floor(this.time * WALK_FPS) % STEP_FRAMES}`;
       if (this.moveTo(this.targetX, WALK_SPEED, dt)) {
         this.state = 'idle';
         this.idleTime = Phaser.Math.FloatBetween(0.5, 2);
@@ -106,21 +114,21 @@ export class Person {
     } else if (this.state === 'scared') {
       frame = 'scared';
     } else if (this.state === 'flee') {
-      frame = `run${Math.floor(this.time * RUN_FPS) % 4}`;
+      frame = `run${Math.floor(this.time * RUN_FPS) % STEP_FRAMES}`;
       if (this.moveTo(this.doorX, RUN_SPEED, dt)) this.leave();
     }
 
     // Смотрит туда, куда идёт
     this.view.scaleX = this.dir;
     this.sprite.setFrame(frame);
-    this.alarm.setPosition(this.view.x, this.view.y - 46);
+    this.alarm.setPosition(this.view.x, this.view.y - PERSON_HEIGHT - 8);
 
     // Тень: при свете лампы тянется в сторону от неё, без света — еле видна
     const away = this.view.x - this.lamp.x;
     const lit = this.lamp.power;
     this.shadow
-      .setPosition(this.view.x + away * 0.04 * lit, this.feetY + 1)
-      .setDisplaySize(22 + Math.abs(away) * 0.1 * lit, 7)
+      .setPosition(this.view.x + away * 0.06 * lit, this.feetY + 1)
+      .setDisplaySize(46 + Math.abs(away) * 0.14 * lit, 11)
       .setAlpha((0.3 + 0.35 * lit) * this.view.alpha);
   }
 

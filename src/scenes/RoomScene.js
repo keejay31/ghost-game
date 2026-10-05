@@ -65,7 +65,7 @@ export class RoomScene extends Phaser.Scene {
     // Люди
     const walkArea = { minX: 150, maxX: 600, doorX: DOOR_X, lamp: this.lamp };
     const blue = { shirt: 0x5a82aa, skin: 0xd9a982, hair: 0x3a2418, pants: 0x3a3650 };
-    const red = { shirt: 0xaa5a6e, skin: 0xc28a6a, hair: 0x1a1210, pants: 0x4a3a34 };
+    const red = { shirt: 0xaa5a6e, skin: 0xc28a6a, hair: 0x1a1210, pants: 0x4a3a34, longHair: true };
     this.people = [
       new Person(this, { ...walkArea, ...blue, x: 420, feetY: 314 }),
       new Person(this, { ...walkArea, ...red, x: 540, feetY: 324 }),

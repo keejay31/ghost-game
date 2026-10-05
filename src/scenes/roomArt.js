@@ -97,7 +97,7 @@ export function paintRoom(scene, floorY, ceilingY) {
     paintCeiling(b, rnd, width, ceilingY);
     paintFloor(b, rnd, width, floorY);
     paintDoor(b, rnd, 40, 172, 64, floorY - 172);
-    paintPortrait(b, 176, 96);
+    paintPortrait(b, 176, 146);
     paintCobweb(b, 0, ceilingY, 1);
     paintCobweb(b, width - 1, ceilingY, -1);
   });
