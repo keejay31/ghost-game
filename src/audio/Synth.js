@@ -117,6 +117,20 @@ export class Synth {
     for (let i = 0; i < 6; i++) this.tink(Math.random() * 0.15);
   }
 
+  // Глаза портрета загорелись: тонкий звон и низкий гул
+  stare() {
+    this.tone(1318, 0.7, 0.05);
+    this.tone(1976, 0.9, 0.03, { delay: 0.06 });
+    this.tone(82, 0.9, 0.1, { toFreq: 78 });
+  }
+
+  // «БУ!»: голос съезжает вниз, плюс выдох
+  boo() {
+    this.tone(260, 0.5, 0.3, { type: 'sawtooth', toFreq: 95 });
+    this.tone(130, 0.55, 0.35, { toFreq: 60 });
+    this.noise(0.25, 0.3, 'lowpass', 700);
+  }
+
   // Звяк осколка
   tink(delay = 0) {
     const freq = 3000 + Math.random() * 4000;

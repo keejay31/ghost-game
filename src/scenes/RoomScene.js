@@ -22,6 +22,8 @@ const FEAR_LIGHT_OFF = 1;
 const FEAR_BULB_POP = 3;
 const FEAR_PIANO_PLAY = 1;
 const FEAR_PIANO_SLAM = 3;
+const FEAR_PORTRAIT_LOOK = 1;
+const FEAR_PORTRAIT_BOO = 3;
 
 // Середина двери — туда убегают люди
 const DOOR_X = 72;
@@ -63,6 +65,14 @@ export class RoomScene extends Phaser.Scene {
       this.scarePeople(FEAR_PIANO_PLAY, (p) => this.piano.canHear(p.x)),
     );
     this.piano.events.on('slam', () => this.scarePeople(FEAR_PIANO_SLAM));
+    // Взгляд портрета пугает тех, кто рядом, а «БУ!» — всех
+    this.portrait.events.on('look', () =>
+      this.scarePeople(FEAR_PORTRAIT_LOOK, (p) => this.portrait.sees(p.x)),
+    );
+    this.portrait.events.on('boo', () => {
+      this.ghost.peek(this.portrait.x, this.portrait.y);
+      this.scarePeople(FEAR_PORTRAIT_BOO);
+    });
 
     // Люди
     const walkArea = { minX: 150, maxX: 600, doorX: DOOR_X, lamp: this.lamp };

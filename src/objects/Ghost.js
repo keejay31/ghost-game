@@ -12,6 +12,7 @@ const LOOK_PX = 2; // на сколько пикселей лицо повора
 const LEAN_PX = 1.5; // наклон на полной скорости
 const WAVE_FPS = 8; // кадров в секунду у волны по хвосту
 const GLOW = 0x66c2fd; // призрак светится своим цветом
+const PEEK_SCALE = 2; // во сколько раз призрак больше, когда высовывается из предмета
 
 export class Ghost {
   // Загрузить картинку призрака (вызывать в preload сцены)
@@ -44,6 +45,7 @@ export class Ghost {
     this.aura = scene.lighting.addGlow('light-soft', GLOW);
     this.glowTime = 0;
     this.trailDue = 0; // сколько огоньков следа пора выпустить
+    this.flare = 0; // вспышка света (после «БУ!»), гаснет сама
     this.imageIn = 0; // через сколько секунд оставить отпечаток
 
     this.keys = scene.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT');
@@ -64,7 +66,7 @@ export class Ghost {
     this.x = toX;
     this.y = toY;
     this.scene.tweens.killTweensOf(this.view);
-    this.view.setPosition(fromX, fromY).setScale(0.2).setAlpha(0);
+    this.view.setCrop().setPosition(fromX, fromY).setScale(0.2).setAlpha(0);
     this.scene.fx.burst(fromX, fromY);
     this.scene.tweens.add({
       targets: this.view,
@@ -79,17 +81,46 @@ export class Ghost {
     });
   }
 
+  // Высунуться по пояс из предмета в точке (x, y) и спрятаться обратно
+  peek(x, y) {
+    const view = this.view;
+    this.sprite.draw(0, 0, 0, false); // смотрит прямо на нас
+    this.flare = 1;
+    this.scene.tweens.killTweensOf(view);
+    // Видна только верхняя часть — хвост остаётся внутри
+    view.setCrop(0, 0, view.width, Math.round(view.height * 0.62));
+    view.setPosition(x, y + 8).setScale(0.5).setAlpha(1);
+    this.scene.tweens.add({
+      targets: view,
+      scale: PEEK_SCALE,
+      duration: 110,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.scene.tweens.add({
+          targets: view,
+          scale: 0.3,
+          alpha: 0,
+          delay: 450,
+          duration: 140,
+          ease: 'Quad.easeIn',
+          onComplete: () => view.setCrop().setPosition(x, y).setScale(0.2),
+        });
+      },
+    });
+  }
+
   update(dt) {
     if (this.active) this.fly(dt);
 
     // Свет летит за призраком и медленно «дышит». Внутри предмета — светит из него
     this.glowTime += dt;
-    const pulse = 1 + 0.06 * Math.sin(this.glowTime * 2.2);
+    this.flare *= Math.exp(-dt * 4);
+    const pulse = 1 + 0.06 * Math.sin(this.glowTime * 2.2) + this.flare;
     this.light.setPosition(this.view.x, this.view.y).setScale(1.5 * pulse).setAlpha(0.85);
     this.aura
       .setPosition(this.view.x, this.view.y)
       .setScale(0.55 * pulse)
-      .setAlpha(0.15 + 0.15 * this.view.alpha);
+      .setAlpha(0.15 + 0.15 * this.view.alpha + 0.3 * this.flare);
   }
 
   fly(dt) {
